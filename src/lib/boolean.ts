@@ -11,7 +11,7 @@
  * - "(ai AND analysis) OR writing" - complex expressions with grouping
  */
 
-import type { BooleanExpression, ExpressionType } from '@/types/prompt';
+import type { BooleanExpression } from '@/types/prompt';
 
 /**
  * Parse a boolean expression string into an expression tree

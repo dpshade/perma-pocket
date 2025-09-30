@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { shouldEncrypt } from '@/lib/encryption';
-import { getAllTags } from '@/lib/search';
 import { usePrompts } from '@/hooks/usePrompts';
 import type { Prompt } from '@/types/prompt';
 

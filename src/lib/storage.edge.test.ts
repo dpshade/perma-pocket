@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   getProfile,
-  saveProfile,
   initializeProfile,
   addPromptToProfile,
   archivePrompt,
@@ -13,7 +12,7 @@ import {
   getTheme,
   saveTheme,
 } from './storage';
-import type { UserProfile, Prompt, PromptMetadata } from '@/types/prompt';
+import type { Prompt, PromptMetadata } from '@/types/prompt';
 
 describe('Storage Edge Cases', () => {
   beforeEach(() => {
