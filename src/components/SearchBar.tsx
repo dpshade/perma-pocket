@@ -123,7 +123,14 @@ export function SearchBar({ showArchived, setShowArchived }: SearchBarProps) {
         </div>
 
         {booleanExpression && (
-          <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-sm">
+          <div
+            className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-sm cursor-pointer hover:bg-primary/10 transition-colors"
+            onClick={() => {
+              setExpressionText(expressionToString(booleanExpression));
+              setShowBooleanBuilder(true);
+            }}
+            title="Click to edit filter"
+          >
             <Filter className="h-4 w-4 text-primary" />
             <div className="flex-1 min-w-0">
               {activeSavedSearch ? (
@@ -133,7 +140,10 @@ export function SearchBar({ showArchived, setShowArchived }: SearchBarProps) {
               )}
             </div>
             <button
-              onClick={clearBooleanSearch}
+              onClick={(e) => {
+                e.stopPropagation();
+                clearBooleanSearch();
+              }}
               className="rounded-full p-1 text-primary/70 transition-colors hover:text-primary"
               title="Remove filter"
             >
@@ -168,29 +178,21 @@ export function SearchBar({ showArchived, setShowArchived }: SearchBarProps) {
               {showTagSuggestions ? 'Hide tag filters' : 'Show tag filters'} ({allTags.length} {tagLabel})
             </button>
             {selectedTags.length > 0 && (
-              <span className="text-xs text-muted-foreground">
+              <button
+                onClick={() => {
+                  const tagsExpression = selectedTags.map(t => `"${t}"`).join(' AND ');
+                  setExpressionText(tagsExpression);
+                  setShowBooleanBuilder(true);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                title="Click to edit filter"
+              >
                 Filtering by {selectedTags.length} {selectedTags.length === 1 ? 'tag' : 'tags'}
-              </span>
+              </button>
             )}
           </div>
 
-          {selectedTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {selectedTags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="default"
-                  className="cursor-pointer rounded-full px-3 text-xs transition-transform hover:scale-105"
-                  onClick={() => toggleTag(tag)}
-                >
-                  {tag}
-                  <X className="ml-1 h-3 w-3" />
-                </Badge>
-              ))}
-            </div>
-          )}
-
-        {showTagSuggestions && (
+          {showTagSuggestions && (
             <div className="flex flex-wrap gap-2 rounded-xl border border-border/70 bg-muted/40 p-3">
               {allTags.length > 0 ? (
                 allTags.map((tag) => (
@@ -206,6 +208,33 @@ export function SearchBar({ showArchived, setShowArchived }: SearchBarProps) {
               ) : (
                 <div className="text-xs text-muted-foreground">No tags yet. Add tags to your prompts!</div>
               )}
+            </div>
+          )}
+
+          {selectedTags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {selectedTags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="default"
+                  className="group cursor-pointer rounded-full px-3 text-xs transition-all hover:scale-105 hover:bg-primary/90"
+                  onClick={(e) => {
+                    // If clicking the X area, just remove the tag
+                    if ((e.target as HTMLElement).closest('svg')) {
+                      toggleTag(tag);
+                    } else {
+                      // Otherwise, open boolean builder with current tags
+                      const tagsExpression = selectedTags.map(t => `"${t}"`).join(' AND ');
+                      setExpressionText(tagsExpression);
+                      setShowBooleanBuilder(true);
+                    }
+                  }}
+                  title="Click to edit filter"
+                >
+                  {tag}
+                  <X className="ml-1 h-3 w-3 opacity-60 group-hover:opacity-100 transition-opacity" />
+                </Badge>
+              ))}
             </div>
           )}
         </div>

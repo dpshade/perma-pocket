@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { DragEvent } from 'react';
-import { Upload, FolderUp, FileText, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Upload, FolderUp, FileText, CheckCircle, AlertCircle, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { importMarkdownDirectory, type FileImportResult } from '@/lib/import';
+import { estimatePromptUploadSize, formatBytes, getSizeWarningLevel } from '@/lib/fileSize';
 
 interface UploadDialogProps {
   open: boolean;
@@ -18,16 +19,39 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
   const [isProcessing, setIsProcessing] = useState(false);
   const [preview, setPreview] = useState<FileImportResult[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [fileSizes, setFileSizes] = useState<Map<string, number>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   const resetState = () => {
     setPreview(null);
     setSelectedIds(new Set());
+    setFileSizes(new Map());
     setIsProcessing(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (folderInputRef.current) folderInputRef.current.value = '';
   };
+
+  // Calculate file sizes when preview changes
+  useEffect(() => {
+    if (!preview) return;
+
+    const calculateSizes = async () => {
+      const sizeMap = new Map<string, number>();
+
+      for (const result of preview) {
+        if (result.success && result.prompt) {
+          // Estimate size (fast, doesn't require wallet connection)
+          const estimatedSize = estimatePromptUploadSize(result.prompt);
+          sizeMap.set(result.prompt.id, estimatedSize);
+        }
+      }
+
+      setFileSizes(sizeMap);
+    };
+
+    calculateSizes();
+  }, [preview]);
 
   const handleDragEnter = (e: DragEvent) => {
     e.preventDefault();
@@ -201,6 +225,17 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
       p.success && p.prompt && existingPromptIds.includes(p.prompt.id) && selectedIds.has(p.prompt.id)
     ).length;
 
+    // Calculate total size of selected prompts
+    const totalSize = Array.from(selectedIds).reduce((sum, id) => {
+      return sum + (fileSizes.get(id) || 0);
+    }, 0);
+
+    // Count size warnings
+    const oversizedCount = Array.from(selectedIds).filter(id => {
+      const size = fileSizes.get(id) || 0;
+      return size > 102400; // 100 KiB
+    }).length;
+
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
@@ -215,7 +250,7 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
           </DialogHeader>
 
           {/* Stats */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {newCount > 0 && (
               <Badge variant="default">{newCount} new</Badge>
             )}
@@ -225,6 +260,15 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
             {errorCount > 0 && (
               <Badge variant="destructive">{errorCount} errors</Badge>
             )}
+            <Badge variant="outline" className="bg-muted">
+              Total: {formatBytes(totalSize)}
+            </Badge>
+            {oversizedCount > 0 && (
+              <Badge variant="destructive" className="flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                {oversizedCount} over 100 KiB
+              </Badge>
+            )}
           </div>
 
           {/* Prompt List */}
@@ -232,6 +276,8 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
             {preview.map((result, index) => {
               const isSelected = result.prompt && selectedIds.has(result.prompt.id);
               const willUpdate = result.prompt && existingPromptIds.includes(result.prompt.id);
+              const fileSize = result.prompt ? fileSizes.get(result.prompt.id) : undefined;
+              const sizeWarning = fileSize ? getSizeWarningLevel(fileSize) : 'ok';
 
               return (
                 <div
@@ -267,7 +313,7 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
                           <p className="text-sm text-muted-foreground line-clamp-2">
                             {result.prompt.description || 'No description'}
                           </p>
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1 items-center">
                             <code className="text-xs bg-muted px-1 py-0.5 rounded">
                               {result.prompt.id}
                             </code>
@@ -277,11 +323,24 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
                               </Badge>
                             ))}
                           </div>
-                          {willUpdate && (
-                            <Badge variant="secondary" className="text-xs">
-                              Will update existing
-                            </Badge>
-                          )}
+                          <div className="flex flex-wrap gap-1 items-center">
+                            {willUpdate && (
+                              <Badge variant="secondary" className="text-xs">
+                                Will update existing
+                              </Badge>
+                            )}
+                            {fileSize !== undefined && (
+                              <Badge
+                                variant={sizeWarning === 'error' ? 'destructive' : sizeWarning === 'warning' ? 'default' : 'outline'}
+                                className={`text-xs ${sizeWarning === 'warning' ? 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30' : ''}`}
+                              >
+                                {formatBytes(fileSize)}
+                                {sizeWarning === 'error' && ' (requires credits)'}
+                                {sizeWarning === 'warning' && ' (near limit)'}
+                                {sizeWarning === 'ok' && ' (free)'}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <p className="text-sm text-destructive mt-1">{result.error}</p>
@@ -353,10 +412,10 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
               </div>
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">
-                  {isProcessing ? 'Processing files...' : 'Drag and drop files or folders here'}
+                  {isProcessing ? 'Processing files...' : 'Drag and drop multiple files or folders here'}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Support for .md files with frontmatter
+                  Supports .md files with frontmatter • Drop multiple files at once
                 </p>
               </div>
             </div>
@@ -381,7 +440,10 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
               className="h-24 flex flex-col gap-2"
             >
               <FileText className="h-6 w-6" />
-              <span>Select Files</span>
+              <div className="space-y-0.5">
+                <div className="font-medium">Select Files</div>
+                <div className="text-xs text-muted-foreground">Multiple selection</div>
+              </div>
             </Button>
 
             <Button
@@ -391,7 +453,10 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
               className="h-24 flex flex-col gap-2"
             >
               <FolderUp className="h-6 w-6" />
-              <span>Select Folder</span>
+              <div className="space-y-0.5">
+                <div className="font-medium">Select Folder</div>
+                <div className="text-xs text-muted-foreground">All .md files</div>
+              </div>
             </Button>
           </div>
 

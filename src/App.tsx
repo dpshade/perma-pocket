@@ -216,8 +216,8 @@ function App() {
               </span>
             </Button>
             <div className="h-6 w-px bg-border" />
-            <ThemeToggle />
             <WalletButton />
+            <ThemeToggle />
           </div>
         </div>
       </header>

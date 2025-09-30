@@ -48,75 +48,90 @@ export function PromptDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <DialogTitle className="text-2xl">{prompt.title}</DialogTitle>
-                <span title={isPublic ? "Public prompt" : "Encrypted prompt"}>
-                  {isPublic ? (
-                    <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  ) : (
-                    <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  )}
-                </span>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+        {/* Scrollable content area */}
+        <div className="overflow-y-auto flex-1 px-6 pt-6">
+          <DialogHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <DialogTitle className="text-2xl">{prompt.title}</DialogTitle>
+                  <Badge
+                    variant={isEncrypted ? "default" : "secondary"}
+                    className="flex items-center gap-1"
+                    title={isEncrypted
+                      ? "This prompt is encrypted. Only your wallet can decrypt it."
+                      : "This prompt is public. Anyone can read it on Arweave."}
+                  >
+                    {isPublic ? (
+                      <>
+                        <Globe className="h-3 w-3" />
+                        <span className="text-xs">Public</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-3 w-3" />
+                        <span className="text-xs">Encrypted</span>
+                      </>
+                    )}
+                  </Badge>
+                </div>
+                {prompt.description && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {prompt.description}
+                  </p>
+                )}
               </div>
-              {prompt.description && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  {prompt.description}
-                </p>
+              {prompt.versions.length > 1 && (
+                <Badge variant="secondary">
+                  v{prompt.versions.length}
+                </Badge>
               )}
             </div>
-            {prompt.versions.length > 1 && (
-              <Badge variant="secondary">
-                v{prompt.versions.length}
-              </Badge>
-            )}
-          </div>
 
-          {/* Tags */}
-          {prompt.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {prompt.tags.map(tag => (
-                <Badge key={tag} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          {/* Metadata */}
-          <div className="text-xs text-muted-foreground space-y-1 mt-3">
-            <div>Created: {formatDate(prompt.createdAt)}</div>
-            <div>Last updated: {formatDate(prompt.updatedAt)}</div>
-            {prompt.currentTxId && (
-              <div>
-                Arweave TxID:{' '}
-                <a
-                  href={`https://viewblock.io/arweave/tx/${prompt.currentTxId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  {prompt.currentTxId.slice(0, 8)}...{prompt.currentTxId.slice(-8)}
-                </a>
+            {/* Tags */}
+            {prompt.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {prompt.tags.map(tag => (
+                  <Badge key={tag} variant="outline">
+                    {tag}
+                  </Badge>
+                ))}
               </div>
             )}
-          </div>
-        </DialogHeader>
 
-        {/* Content */}
-        <div className="py-4">
-          <div className="rounded-md border bg-muted/50 p-4">
-            <pre className="whitespace-pre-wrap font-mono text-sm">
-              {prompt.content}
-            </pre>
+            {/* Metadata */}
+            <div className="text-xs text-muted-foreground space-y-1 mt-3">
+              <div>Created: {formatDate(prompt.createdAt)}</div>
+              <div>Last updated: {formatDate(prompt.updatedAt)}</div>
+              {prompt.currentTxId && (
+                <div>
+                  Arweave TxID:{' '}
+                  <a
+                    href={`https://viewblock.io/arweave/tx/${prompt.currentTxId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    {prompt.currentTxId.slice(0, 8)}...{prompt.currentTxId.slice(-8)}
+                  </a>
+                </div>
+              )}
+            </div>
+          </DialogHeader>
+
+          {/* Content */}
+          <div className="py-4">
+            <div className="rounded-md border bg-muted/50 p-4">
+              <pre className="whitespace-pre-wrap font-mono text-sm">
+                {prompt.content}
+              </pre>
+            </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 justify-end border-t pt-4">
+        {/* Sticky Actions */}
+        <div className="flex gap-2 justify-end border-t pt-4 pb-4 px-6 bg-background flex-shrink-0">
           <Button
             variant="outline"
             onClick={handleCopy}

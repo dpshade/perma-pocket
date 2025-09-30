@@ -1,4 +1,4 @@
-import { Copy, Edit, Archive, ArchiveRestore, Check, Lock, Globe } from 'lucide-react';
+import { ExternalLink, Edit, Archive, ArchiveRestore, Check, Lock, Globe } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,8 +36,9 @@ export function PromptCard({ prompt, onView, onEdit, onArchive, onRestore, onCop
 
   return (
     <Card
-      className="group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-200 active:scale-[0.98]"
-      onClick={onView}
+      className={`group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-200 active:scale-[0.98] ${copied ? 'ring-2 ring-primary' : ''}`}
+      onClick={handleCopy}
+      title="Click to copy"
     >
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
@@ -51,6 +52,9 @@ export function PromptCard({ prompt, onView, onEdit, onArchive, onRestore, onCop
                   <Lock className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                 )}
               </span>
+              {copied && (
+                <Check className="h-4 w-4 text-primary animate-in fade-in zoom-in duration-200" />
+              )}
             </div>
             <CardDescription className="line-clamp-2 mt-1 text-xs sm:text-sm">
               {prompt.description || 'No description'}
@@ -96,19 +100,15 @@ export function PromptCard({ prompt, onView, onEdit, onArchive, onRestore, onCop
       <CardFooter className="flex gap-2">
         <Button
           size="sm"
-          variant={copied ? "default" : "outline"}
+          variant="outline"
           onClick={(e) => {
             e.stopPropagation();
-            handleCopy();
+            onView();
           }}
-          className="hover:scale-110 active:scale-90 transition-all"
-          disabled={copied}
+          className="hover:scale-110 active:scale-90 transition-transform"
+          title="Open prompt"
         >
-          {copied ? (
-            <Check className="h-3 w-3" />
-          ) : (
-            <Copy className="h-3 w-3" />
-          )}
+          <ExternalLink className="h-3 w-3" />
         </Button>
 
         {!prompt.isArchived ? (

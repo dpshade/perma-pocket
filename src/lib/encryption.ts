@@ -24,7 +24,7 @@ export interface DecryptedData {
  * Check if content is encrypted
  */
 export function isEncrypted(data: any): data is EncryptedData {
-  return data && data.isEncrypted === true && data.encryptedContent && data.encryptedKey && data.iv;
+  return !!(data && data.isEncrypted === true && data.encryptedContent && data.encryptedKey && data.iv);
 }
 
 /**
@@ -54,15 +54,16 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /**
- * Convert Base64 string to ArrayBuffer
+ * Convert Base64 string to Uint8Array
+ * Returns Uint8Array which is compatible with Web Crypto API
  */
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
+function base64ToArrayBuffer(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return bytes.buffer;
+  return bytes;
 }
 
 /**
@@ -105,10 +106,17 @@ export async function encryptContent(content: string): Promise<EncryptedData> {
         hash: 'SHA-256',
       }
     );
-    const encryptedKeyBuffer: ArrayBuffer =
-      encryptedKeyResult instanceof ArrayBuffer
-        ? encryptedKeyResult
-        : encryptedKeyResult.buffer;
+
+    // Handle different return types from wallet.encrypt
+    let encryptedKeyBuffer: ArrayBuffer;
+    if (encryptedKeyResult instanceof ArrayBuffer) {
+      encryptedKeyBuffer = encryptedKeyResult;
+    } else if (encryptedKeyResult instanceof Uint8Array) {
+      encryptedKeyBuffer = encryptedKeyResult.buffer;
+    } else {
+      // Fallback: try to get the buffer property
+      encryptedKeyBuffer = encryptedKeyResult.buffer;
+    }
 
     // Convert to base64 for storage
     return {
@@ -146,10 +154,19 @@ export async function decryptContent(encryptedData: EncryptedData): Promise<stri
         hash: 'SHA-256',
       }
     );
-    const decryptedKeyBuffer: ArrayBuffer =
-      decryptedKeyResult instanceof ArrayBuffer
-        ? decryptedKeyResult
-        : decryptedKeyResult.buffer;
+
+    // Ensure we have a proper buffer for importKey
+    // importKey accepts ArrayBuffer, TypedArray, or DataView
+    let decryptedKeyBuffer: ArrayBuffer | Uint8Array;
+    if (decryptedKeyResult instanceof ArrayBuffer) {
+      decryptedKeyBuffer = decryptedKeyResult;
+    } else if (decryptedKeyResult instanceof Uint8Array) {
+      // Use the Uint8Array directly - importKey accepts TypedArrays
+      decryptedKeyBuffer = decryptedKeyResult;
+    } else {
+      // Fallback: try to get the buffer property
+      decryptedKeyBuffer = decryptedKeyResult.buffer;
+    }
 
     // Import the decrypted AES key
     const aesKey = await crypto.subtle.importKey(
