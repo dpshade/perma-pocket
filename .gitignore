@@ -2,6 +2,7 @@
 node_modules
 .pnp
 .pnp.js
+package-lock.json  # Using bun.lock instead
 
 # Build outputs
 dist
