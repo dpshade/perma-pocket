@@ -79,8 +79,8 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl flex flex-col h-[85vh]">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {prompt ? 'Edit Prompt' : 'Create New Prompt'}
           </DialogTitle>
@@ -89,10 +89,12 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 flex-shrink-0 py-4">
           {/* Title */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Title *</label>
+            <label className="text-sm font-medium">
+              Title <span className="text-xs text-muted-foreground">(required)</span>
+            </label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -141,28 +143,30 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
               </div>
             )}
           </div>
+        </div>
 
-          {/* Content */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Content *</label>
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Enter your prompt content here... (supports Markdown)"
-              className="min-h-[300px] font-mono text-sm"
-            />
-            <div className="text-xs text-muted-foreground">
-              {content.length} characters · {Math.ceil(new Blob([content]).size / 1024)} KB
-              {new Blob([content]).size > 102400 && (
-                <span className="text-yellow-600 ml-2">
-                  ⚠ Exceeds 100 KiB free tier
-                </span>
-              )}
-            </div>
+        {/* Content - scrollable */}
+        <div className="space-y-2 flex-1 min-h-0 flex flex-col">
+          <label className="text-sm font-medium flex-shrink-0">
+            Content <span className="text-xs text-muted-foreground">(required)</span>
+          </label>
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Enter your prompt content here... (supports Markdown)"
+            className="flex-1 font-mono text-sm resize-none"
+          />
+          <div className="text-xs text-muted-foreground flex-shrink-0">
+            {content.length} characters · {Math.ceil(new Blob([content]).size / 1024)} KB
+            {new Blob([content]).size > 102400 && (
+              <span className="text-yellow-600 ml-2">
+                ⚠ Exceeds 100 KiB free tier
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 flex-shrink-0 border-t pt-4">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

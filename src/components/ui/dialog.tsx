@@ -73,7 +73,10 @@ const DialogContent = React.forwardRef<
   return (
     <DialogPortal>
       <DialogOverlay />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={() => onOpenChange?.(false)}
+      >
         <div
           ref={ref}
           className={cn(

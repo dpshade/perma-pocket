@@ -142,16 +142,6 @@ function App() {
             <span>Pocket Prompt</span>
           </h1>
           <div className="flex items-center gap-2">
-            <Button
-              variant={showArchived ? "outline" : "ghost"}
-              size="sm"
-              onClick={() => setShowArchived(!showArchived)}
-              className="whitespace-nowrap"
-            >
-              <ArchiveIcon className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{showArchived ? 'Hide' : 'Show'} Archived</span>
-              <span className="sm:hidden">Archived</span>
-            </Button>
             <Button onClick={handleCreateNew} size="sm" className="whitespace-nowrap">
               <Plus className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">New Prompt</span>
@@ -167,7 +157,13 @@ function App() {
       {/* Main Content */}
       <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
         <section className="mx-auto flex max-w-6xl flex-col gap-4">
-          <SearchBar />
+          <SearchBar showArchived={showArchived} setShowArchived={setShowArchived} />
+          {showArchived && (
+            <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/30 px-4 py-2.5 text-sm">
+              <ArchiveIcon className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">Viewing archived prompts</span>
+            </div>
+          )}
         </section>
 
         <section className="mx-auto max-w-6xl">
@@ -183,14 +179,13 @@ function App() {
           </div>
         ) : filteredPrompts.length === 0 ? (
           <div className="text-center py-12 space-y-4">
-            <div className="text-6xl animate-bounce-slow">📝</div>
             <p className="text-muted-foreground text-lg">
               {prompts.length === 0
                 ? "No prompts yet. Time to create something awesome!"
                 : 'No prompts match your search. Try different filters?'}
             </p>
             {prompts.length === 0 && (
-              <Button onClick={handleCreateNew} className="mt-4 animate-wiggle">
+              <Button onClick={handleCreateNew} className="mt-4">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Prompt
               </Button>

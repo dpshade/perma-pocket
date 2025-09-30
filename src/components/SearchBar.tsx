@@ -1,4 +1,4 @@
-import { Search, X, Filter, Bookmark } from 'lucide-react';
+import { Search, X, Filter, Bookmark, Archive } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,12 @@ import { useState, useEffect } from 'react';
 import type { BooleanExpression, SavedSearch } from '@/types/prompt';
 import { BooleanBuilder } from '@/components/BooleanBuilder';
 
-export function SearchBar() {
+interface SearchBarProps {
+  showArchived: boolean;
+  setShowArchived: (show: boolean) => void;
+}
+
+export function SearchBar({ showArchived, setShowArchived }: SearchBarProps) {
   const {
     prompts,
     searchQuery,
@@ -51,15 +56,26 @@ export function SearchBar() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSavedSearchesDialogOpen(true)}
-          className="h-9 gap-2 px-3 text-sm font-medium"
-        >
-          <Bookmark className="h-4 w-4" />
-          <span>Collections</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSavedSearchesDialogOpen(true)}
+            className="h-9 gap-2 px-3 text-sm font-medium"
+          >
+            <Bookmark className="h-4 w-4" />
+            <span>Collections</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowArchived(!showArchived)}
+            className="h-8 w-8 text-muted-foreground"
+            title={showArchived ? 'Hide archived' : 'Show archived'}
+          >
+            <Archive className="h-3.5 w-3.5" />
+          </Button>
+        </div>
 
         {hasActiveFilters && (
           <Button
