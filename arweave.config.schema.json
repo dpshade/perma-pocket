@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Arweave Configuration",
+  "description": "Configuration for Arweave upload tags and query filters for Pocket Prompt",
+  "type": "object",
+  "required": ["upload", "query", "encryption"],
+  "properties": {
+    "upload": {
+      "type": "object",
+      "description": "Configuration for uploading prompts to Arweave",
+      "required": ["tags"],
+      "properties": {
+        "tags": {
+          "type": "array",
+          "description": "Static tags applied to every upload",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {"type": "string"},
+              "value": {"type": "string"},
+              "description": {"type": "string"}
+            }
+          }
+        },
+        "dynamicTags": {
+          "type": "array",
+          "description": "Tags with values computed from prompt data",
+          "items": {
+            "type": "object",
+            "required": ["name", "source"],
+            "properties": {
+              "name": {"type": "string"},
+              "source": {"type": "string"},
+              "transform": {"type": "string"},
+              "fallback": {"type": "string"},
+              "description": {"type": "string"}
+            }
+          }
+        },
+        "arrayTags": {
+          "type": "array",
+          "description": "Tags created from array values (one tag per item)",
+          "items": {
+            "type": "object",
+            "required": ["name", "source"],
+            "properties": {
+              "name": {"type": "string"},
+              "source": {"type": "string"},
+              "description": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "description": "Configuration for querying prompts from Arweave",
+      "required": ["gateway", "filters"],
+      "properties": {
+        "gateway": {
+          "type": "string",
+          "description": "GraphQL endpoint for querying Arweave"
+        },
+        "filters": {
+          "type": "array",
+          "description": "Tag filters for GraphQL queries",
+          "items": {
+            "type": "object",
+            "required": ["name", "values"],
+            "properties": {
+              "name": {"type": "string"},
+              "values": {"type": "array", "items": {"type": "string"}},
+              "description": {"type": "string"}
+            }
+          }
+        },
+        "owner": {
+          "type": "object",
+          "description": "Owner filter configuration"
+        },
+        "sort": {
+          "type": "object",
+          "properties": {
+            "field": {"type": "string"},
+            "order": {"type": "string", "enum": ["ASC", "DESC"]},
+            "description": {"type": "string"}
+          }
+        },
+        "limit": {
+          "type": "number",
+          "description": "Maximum number of results to return"
+        }
+      }
+    },
+    "encryption": {
+      "type": "object",
+      "description": "Encryption behavior configuration",
+      "required": ["defaultBehavior", "publicTag"],
+      "properties": {
+        "defaultBehavior": {
+          "type": "string",
+          "enum": ["encrypted", "public"],
+          "description": "Default encryption behavior for new prompts"
+        },
+        "publicTag": {
+          "type": "string",
+          "description": "Tag name that marks a prompt as public (unencrypted)"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,10 @@
-import { Copy, Edit, Archive, History, Check } from 'lucide-react';
+import { Copy, Edit, Archive, History, Check, Lock, Globe } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Prompt } from '@/types/prompt';
 import { useState } from 'react';
+import { isPromptEncrypted } from '@/lib/encryption';
 
 interface PromptDialogProps {
   open: boolean;
@@ -25,6 +26,9 @@ export function PromptDialog({
   const [copied, setCopied] = useState(false);
 
   if (!prompt) return null;
+
+  const isEncrypted = isPromptEncrypted(prompt.content);
+  const isPublic = !isEncrypted;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(prompt.content);
@@ -48,7 +52,16 @@ export function PromptDialog({
         <DialogHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <DialogTitle className="text-2xl">{prompt.title}</DialogTitle>
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-2xl">{prompt.title}</DialogTitle>
+                <span title={isPublic ? "Public prompt" : "Encrypted prompt"}>
+                  {isPublic ? (
+                    <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  ) : (
+                    <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  )}
+                </span>
+              </div>
               {prompt.description && (
                 <p className="text-sm text-muted-foreground mt-2">
                   {prompt.description}

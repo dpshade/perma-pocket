@@ -67,10 +67,10 @@ export function SearchBar({ showArchived, setShowArchived }: SearchBarProps) {
             <span>Collections</span>
           </Button>
           <Button
-            variant="ghost"
+            variant={showArchived ? 'default' : 'ghost'}
             size="icon"
             onClick={() => setShowArchived(!showArchived)}
-            className="h-8 w-8 text-muted-foreground"
+            className={`h-8 w-8 ${showArchived ? '' : 'text-muted-foreground'}`}
             title={showArchived ? 'Hide archived' : 'Show archived'}
           >
             <Archive className="h-3.5 w-3.5" />

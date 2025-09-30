@@ -1,5 +1,6 @@
 import { TurboFactory, ArconnectSigner } from '@ardrive/turbo-sdk/web';
 import type { Prompt, ArweaveUploadResult } from '@/types/prompt';
+import { prepareContentForUpload, prepareContentForDisplay, shouldEncrypt } from '@/lib/encryption';
 
 const ARWEAVE_GATEWAY = 'https://arweave.net';
 
@@ -18,7 +19,17 @@ export async function uploadPrompt(
     // Create authenticated turbo instance
     const turbo = TurboFactory.authenticated({ signer });
 
-    const data = JSON.stringify(prompt, null, 2);
+    // Encrypt content if no "public" tag
+    const isPublic = !shouldEncrypt(prompt.tags);
+    const processedContent = await prepareContentForUpload(prompt.content, prompt.tags);
+
+    // Create upload payload with potentially encrypted content
+    const uploadData = {
+      ...prompt,
+      content: processedContent,
+    };
+
+    const data = JSON.stringify(uploadData, null, 2);
 
     // Check size (100 KiB = 102400 bytes)
     const sizeInBytes = new Blob([data]).size;
@@ -44,6 +55,9 @@ export async function uploadPrompt(
       { name: 'Created-At', value: prompt.createdAt.toString() },
       { name: 'Updated-At', value: prompt.updatedAt.toString() },
       { name: 'Version', value: prompt.versions.length.toString() },
+
+      // Encryption status
+      { name: 'Encrypted', value: isPublic ? 'false' : 'true' },
 
       // User-defined tags from prompt
       ...prompt.tags.map(tag => ({ name: 'Tag', value: tag })),
@@ -82,7 +96,25 @@ export async function fetchPrompt(txId: string): Promise<Prompt | null> {
     if (!response.ok) {
       throw new Error(`Failed to fetch prompt: ${response.statusText}`);
     }
-    const prompt: Prompt = await response.json();
+    const promptData: any = await response.json();
+
+    // Check if content is encrypted and decrypt if needed
+    let content = promptData.content;
+    if (typeof content === 'object' && content.isEncrypted) {
+      try {
+        content = await prepareContentForDisplay(content);
+      } catch (error) {
+        console.error('Decryption error for prompt:', txId, error);
+        // If decryption fails, return null so the prompt is skipped
+        return null;
+      }
+    }
+
+    const prompt: Prompt = {
+      ...promptData,
+      content,
+    };
+
     return prompt;
   } catch (error) {
     console.error('Arweave fetch error:', error);
@@ -137,6 +169,8 @@ export async function connectWallet(): Promise<string | null> {
       'SIGN_TRANSACTION',
       'ACCESS_PUBLIC_KEY',
       'SIGNATURE',
+      'ENCRYPT',
+      'DECRYPT',
     ]);
     const address = await arweaveWallet.getActiveAddress();
     return address;

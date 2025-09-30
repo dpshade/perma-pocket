@@ -1,0 +1,114 @@
+{
+  "$schema": "./arweave.config.schema.json",
+  "upload": {
+    "tags": [
+      {
+        "name": "Content-Type",
+        "value": "application/json",
+        "description": "MIME type of the uploaded data"
+      },
+      {
+        "name": "App-Name",
+        "value": "Pocket Prompt",
+        "description": "Application name"
+      },
+      {
+        "name": "App-Version",
+        "value": "1.0.0",
+        "description": "Application version"
+      },
+      {
+        "name": "Type",
+        "value": "prompt",
+        "description": "Data type identifier"
+      },
+      {
+        "name": "Protocol",
+        "value": "Pocket-Prompt-v1",
+        "description": "Protocol identifier for discoverability"
+      },
+      {
+        "name": "Data-Protocol",
+        "value": "Prompt",
+        "description": "Data protocol specification"
+      }
+    ],
+    "dynamicTags": [
+      {
+        "name": "Prompt-Id",
+        "source": "prompt.id",
+        "description": "Unique identifier for the prompt"
+      },
+      {
+        "name": "Title",
+        "source": "prompt.title",
+        "description": "Prompt title"
+      },
+      {
+        "name": "Description",
+        "source": "prompt.description",
+        "fallback": "",
+        "description": "Prompt description"
+      },
+      {
+        "name": "Created-At",
+        "source": "prompt.createdAt",
+        "transform": "toString",
+        "description": "Creation timestamp"
+      },
+      {
+        "name": "Updated-At",
+        "source": "prompt.updatedAt",
+        "transform": "toString",
+        "description": "Last update timestamp"
+      },
+      {
+        "name": "Version",
+        "source": "prompt.versions.length",
+        "transform": "toString",
+        "description": "Version number"
+      },
+      {
+        "name": "Encrypted",
+        "source": "computed",
+        "description": "Encryption status (true/false)"
+      }
+    ],
+    "arrayTags": [
+      {
+        "name": "Tag",
+        "source": "prompt.tags",
+        "description": "User-defined tags (creates multiple Tag entries)"
+      }
+    ]
+  },
+  "query": {
+    "gateway": "https://arweave.net/graphql",
+    "filters": [
+      {
+        "name": "App-Name",
+        "values": ["Pocket Prompt"],
+        "description": "Filter by application name"
+      },
+      {
+        "name": "Protocol",
+        "values": ["Pocket-Prompt-v1"],
+        "description": "Filter by protocol version"
+      }
+    ],
+    "owner": {
+      "description": "Filter by wallet address (set at runtime)"
+    },
+    "sort": {
+      "field": "HEIGHT",
+      "order": "DESC",
+      "description": "Sort by block height, newest first"
+    },
+    "limit": 100
+  },
+  "encryption": {
+    "defaultBehavior": "encrypted",
+    "publicTag": "public",
+    "description": "By default, prompts are encrypted unless they have the 'public' tag"
+  }
+}
