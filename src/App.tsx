@@ -135,23 +135,13 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
           <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
             <Folder className="h-5 w-5 sm:h-6 sm:w-6" />
             <span>Pocket Prompt</span>
           </h1>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <WalletButton />
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
-        <section className="mx-auto flex max-w-6xl flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant={showArchived ? "outline" : "ghost"}
               size="sm"
@@ -167,7 +157,16 @@ function App() {
               <span className="hidden sm:inline">New Prompt</span>
               <span className="sm:hidden">New</span>
             </Button>
+            <div className="h-6 w-px bg-border" />
+            <ThemeToggle />
+            <WalletButton />
           </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
+        <section className="mx-auto flex max-w-6xl flex-col gap-4">
           <SearchBar />
         </section>
 

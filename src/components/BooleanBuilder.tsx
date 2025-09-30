@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Filter, Save, X } from 'lucide-react';
+import { Filter, Save, X, ChevronUp } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -233,7 +233,7 @@ export function BooleanBuilder({
     setSaveDialogOpen(false);
     setSaveName('');
     setSaveDescription('');
-    alert(`Saved search "${search.name}" successfully!`);
+    alert(`Collection "${search.name}" saved successfully!`);
   };
 
   const showTagToggle = displayedTags.length > 12;
@@ -243,7 +243,7 @@ export function BooleanBuilder({
       <div className="flex items-center gap-3 border-b border-border/60 px-3 py-2.5">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Filter className="h-4 w-4 text-primary" />
-          <span>Boolean filter</span>
+          <span>Build a filter</span>
           {parsedExpression && !error && (
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
               {matchCount} match{matchCount === 1 ? '' : 'es'}
@@ -265,7 +265,7 @@ export function BooleanBuilder({
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
               onClick={() => setSaveDialogOpen(true)}
-              title="Save this search"
+              title="Save to collection"
             >
               <Save className="h-4 w-4" />
             </Button>
@@ -275,9 +275,9 @@ export function BooleanBuilder({
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
             onClick={onClose}
-            title="Close builder"
+            title="Collapse builder"
           >
-            <X className="h-4 w-4" />
+            <ChevronUp className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -307,7 +307,7 @@ export function BooleanBuilder({
                 handleApply();
               }
             }}
-            className={cn('pr-10 text-sm', error && 'border-red-500 focus-visible:ring-red-500')}
+            className={cn('border-0 bg-muted/50 pr-10 text-sm focus-visible:ring-0 focus-visible:bg-muted', error && 'bg-red-500/10 focus-visible:bg-red-500/20')}
           />
           {expressionText && (
             <button
@@ -401,7 +401,7 @@ export function BooleanBuilder({
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent className="sm:max-w-[380px]">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold">Save search</DialogTitle>
+            <DialogTitle className="text-sm font-semibold">Save to collection</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 text-sm">
@@ -417,7 +417,7 @@ export function BooleanBuilder({
 
             <Input
               id="save-name"
-              placeholder="Search name"
+              placeholder="Collection name"
               value={saveName}
               onChange={(event) => setSaveName(event.target.value)}
               className="h-9 text-sm"

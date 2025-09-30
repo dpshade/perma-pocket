@@ -31,7 +31,7 @@ export function SavedSearchesDialog({
   }, [open]);
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this saved search?')) {
+    if (confirm('Are you sure you want to delete this collection?')) {
       deleteSavedSearch(id);
       setSearches(searches.filter(s => s.id !== id));
       if (selectedId === id) {
@@ -70,10 +70,10 @@ export function SavedSearchesDialog({
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Bookmark className="h-4 w-4 text-primary" />
-            Saved searches
+            Collections
           </DialogTitle>
           <DialogDescription className="text-sm">
-            Manage and reuse your boolean filters.
+            Save and organize your custom filters for quick access.
           </DialogDescription>
         </DialogHeader>
 
@@ -81,7 +81,7 @@ export function SavedSearchesDialog({
           {searches.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/70 bg-muted/40 py-10 text-center text-muted-foreground">
               <Bookmark className="mx-auto mb-3 h-10 w-10 opacity-50" />
-              <p className="text-sm">No saved searches yet. Create one from the boolean builder.</p>
+              <p className="text-sm">No collections yet. Create one using the filter builder.</p>
             </div>
           ) : (
             searches.map(search => (
@@ -112,7 +112,7 @@ export function SavedSearchesDialog({
                           e.stopPropagation();
                           handleLoad(search);
                         }}
-                        title="Load this search"
+                        title="Load this collection"
                       >
                         <Play className="h-4 w-4" />
                       </Button>
@@ -124,7 +124,7 @@ export function SavedSearchesDialog({
                           e.stopPropagation();
                           onEdit(search);
                         }}
-                        title="Edit search"
+                        title="Edit collection"
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -136,7 +136,7 @@ export function SavedSearchesDialog({
                           e.stopPropagation();
                           handleDuplicate(search);
                         }}
-                        title="Duplicate search"
+                        title="Duplicate collection"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -148,7 +148,7 @@ export function SavedSearchesDialog({
                           e.stopPropagation();
                           handleDelete(search.id);
                         }}
-                        title="Delete search"
+                        title="Delete collection"
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>

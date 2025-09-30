@@ -47,7 +47,6 @@ export function SearchBar() {
   };
 
   const tagLabel = allTags.length === 1 ? 'tag' : 'tags';
-  const hasBooleanActive = Boolean(booleanExpression) || Boolean(expressionText);
 
   return (
     <div className="space-y-5">
@@ -59,7 +58,7 @@ export function SearchBar() {
           className="h-9 gap-2 px-3 text-sm font-medium"
         >
           <Bookmark className="h-4 w-4" />
-          <span>Saved searches</span>
+          <span>Collections</span>
         </Button>
 
         {hasActiveFilters && (
@@ -77,14 +76,13 @@ export function SearchBar() {
       <div className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button
-            variant={hasBooleanActive || showBooleanBuilder ? 'default' : 'outline'}
+            variant={booleanExpression ? 'default' : 'outline'}
             size="sm"
             onClick={() => setShowBooleanBuilder((open) => !open)}
-            className="h-10 gap-2 px-3 text-sm"
+            className="h-10 w-10"
+            title="Filter builder"
           >
             <Filter className="h-4 w-4" />
-            <span className="hidden sm:inline">Boolean filter</span>
-            <span className="sm:hidden">Filter</span>
           </Button>
 
           <div className="relative flex-1">
@@ -94,7 +92,7 @@ export function SearchBar() {
               placeholder={booleanExpression ? 'Additional text filter…' : 'Search prompts…'}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="h-10 w-full rounded-xl border-border/60 pl-11 pr-11 text-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="h-10 w-full border-0 bg-muted/50 pl-11 pr-11 text-sm focus-visible:ring-0 focus-visible:bg-muted"
             />
             {searchQuery && (
               <button
@@ -121,7 +119,7 @@ export function SearchBar() {
             <button
               onClick={clearBooleanSearch}
               className="rounded-full p-1 text-primary/70 transition-colors hover:text-primary"
-              title="Remove boolean filter"
+              title="Remove filter"
             >
               <X className="h-4 w-4" />
             </button>
