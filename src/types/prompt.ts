@@ -46,3 +46,21 @@ export interface ArweaveUploadResult {
   success: boolean;
   error?: string;
 }
+
+export interface SavedSearch {
+  id: string;
+  name: string;
+  description?: string;
+  expression: BooleanExpression;
+  textQuery?: string; // Optional text search to combine with boolean
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Boolean expression types for tag-based search
+export type ExpressionType = 'tag' | 'and' | 'or' | 'not';
+
+export interface BooleanExpression {
+  type: ExpressionType;
+  value: string | BooleanExpression[];
+}

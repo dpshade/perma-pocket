@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Prompt, PromptMetadata } from '@/types/prompt';
+import type { Prompt, PromptMetadata, BooleanExpression, SavedSearch } from '@/types/prompt';
 import { getProfile, getCachedPrompts, cachePrompt, addPromptToProfile, archivePrompt as archivePromptStorage, restorePrompt as restorePromptStorage } from '@/lib/storage';
 import { fetchPrompt, uploadPrompt, getWalletJWK } from '@/lib/arweave';
 import { indexPrompts, addToIndex, removeFromIndex } from '@/lib/search';
@@ -10,6 +10,8 @@ interface PromptsState {
   error: string | null;
   searchQuery: string;
   selectedTags: string[];
+  booleanExpression: BooleanExpression | null;
+  activeSavedSearch: SavedSearch | null;
 
   loadPrompts: () => Promise<void>;
   addPrompt: (prompt: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
@@ -19,6 +21,9 @@ interface PromptsState {
   setSearchQuery: (query: string) => void;
   toggleTag: (tag: string) => void;
   clearFilters: () => void;
+  setBooleanExpression: (expression: BooleanExpression | null, textQuery?: string) => void;
+  loadSavedSearch: (search: SavedSearch) => void;
+  clearBooleanSearch: () => void;
 }
 
 export const usePrompts = create<PromptsState>((set, get) => ({
@@ -27,6 +32,8 @@ export const usePrompts = create<PromptsState>((set, get) => ({
   error: null,
   searchQuery: '',
   selectedTags: [],
+  booleanExpression: null,
+  activeSavedSearch: null,
 
   loadPrompts: async () => {
     set({ loading: true, error: null });
@@ -227,6 +234,28 @@ export const usePrompts = create<PromptsState>((set, get) => ({
   },
 
   clearFilters: () => {
-    set({ searchQuery: '', selectedTags: [] });
+    set({ searchQuery: '', selectedTags: [], booleanExpression: null, activeSavedSearch: null });
+  },
+
+  setBooleanExpression: (expression, textQuery) => {
+    set({
+      booleanExpression: expression,
+      searchQuery: textQuery || '',
+      selectedTags: [], // Clear simple tag filters when using boolean
+      activeSavedSearch: null, // Clear active saved search if manually setting expression
+    });
+  },
+
+  loadSavedSearch: (search) => {
+    set({
+      booleanExpression: search.expression,
+      searchQuery: search.textQuery || '',
+      selectedTags: [], // Clear simple tag filters
+      activeSavedSearch: search,
+    });
+  },
+
+  clearBooleanSearch: () => {
+    set({ booleanExpression: null, activeSavedSearch: null });
   },
 }));

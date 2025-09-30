@@ -1,9 +1,10 @@
-import type { UserProfile, Prompt, PromptMetadata } from '@/types/prompt';
+import type { UserProfile, Prompt, PromptMetadata, SavedSearch } from '@/types/prompt';
 
 const STORAGE_KEYS = {
-  PROFILE: 'permapocket_profile',
-  PROMPTS: 'permapocket_prompts',
-  THEME: 'permapocket_theme',
+  PROFILE: 'pktpmt_profile',
+  PROMPTS: 'pktpmt_prompts',
+  THEME: 'pktpmt_theme',
+  SAVED_SEARCHES: 'pktpmt_saved_searches',
 } as const;
 
 /**
@@ -175,4 +176,63 @@ export function saveTheme(theme: 'light' | 'dark'): void {
   } catch (error) {
     console.error('Error saving theme:', error);
   }
+}
+
+/**
+ * Get all saved searches from localStorage
+ */
+export function getSavedSearches(): SavedSearch[] {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.SAVED_SEARCHES);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error reading saved searches:', error);
+    return [];
+  }
+}
+
+/**
+ * Save a single saved search (creates or updates)
+ */
+export function saveSavedSearch(search: SavedSearch): void {
+  try {
+    const searches = getSavedSearches();
+    const index = searches.findIndex(s => s.id === search.id);
+
+    if (index >= 0) {
+      // Update existing
+      searches[index] = {
+        ...search,
+        updatedAt: Date.now(),
+      };
+    } else {
+      // Add new
+      searches.push(search);
+    }
+
+    localStorage.setItem(STORAGE_KEYS.SAVED_SEARCHES, JSON.stringify(searches));
+  } catch (error) {
+    console.error('Error saving saved search:', error);
+  }
+}
+
+/**
+ * Delete a saved search by ID
+ */
+export function deleteSavedSearch(id: string): void {
+  try {
+    const searches = getSavedSearches();
+    const filtered = searches.filter(s => s.id !== id);
+    localStorage.setItem(STORAGE_KEYS.SAVED_SEARCHES, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Error deleting saved search:', error);
+  }
+}
+
+/**
+ * Get a saved search by ID
+ */
+export function getSavedSearch(id: string): SavedSearch | null {
+  const searches = getSavedSearches();
+  return searches.find(s => s.id === id) || null;
 }

@@ -31,7 +31,7 @@ export async function uploadPrompt(
     const tags = [
       // Required tags
       { name: 'Content-Type', value: 'application/json' },
-      { name: 'App-Name', value: 'PermaPocket' },
+      { name: 'App-Name', value: 'Pocket Prompt' },
       { name: 'App-Version', value: '1.0.0' },
 
       // Data identification
@@ -49,7 +49,7 @@ export async function uploadPrompt(
       ...prompt.tags.map(tag => ({ name: 'Tag', value: tag })),
 
       // Protocol tags for discoverability
-      { name: 'Protocol', value: 'PermaPocket-v1' },
+      { name: 'Protocol', value: 'Pocket-Prompt-v1' },
       { name: 'Data-Protocol', value: 'Prompt' },
     ];
 

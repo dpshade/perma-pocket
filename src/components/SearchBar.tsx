@@ -1,105 +1,212 @@
-import { Search, X } from 'lucide-react';
+import { Search, X, Filter, Bookmark } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { SavedSearchesDialog } from '@/components/SavedSearchesDialog';
 import { usePrompts } from '@/hooks/usePrompts';
 import { getAllTags } from '@/lib/search';
+import { expressionToString } from '@/lib/boolean';
 import { useState, useEffect } from 'react';
+import type { BooleanExpression, SavedSearch } from '@/types/prompt';
+import { BooleanBuilder } from '@/components/BooleanBuilder';
 
 export function SearchBar() {
-  const { prompts, searchQuery, setSearchQuery, selectedTags, toggleTag, clearFilters } = usePrompts();
+  const {
+    prompts,
+    searchQuery,
+    setSearchQuery,
+    selectedTags,
+    toggleTag,
+    clearFilters,
+    booleanExpression,
+    activeSavedSearch,
+    setBooleanExpression,
+    loadSavedSearch,
+    clearBooleanSearch,
+  } = usePrompts();
   const [allTags, setAllTags] = useState<string[]>([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [showBooleanBuilder, setShowBooleanBuilder] = useState(false);
+  const [expressionText, setExpressionText] = useState('');
+  const [savedSearchesDialogOpen, setSavedSearchesDialogOpen] = useState(false);
 
   useEffect(() => {
     const tags = getAllTags(prompts);
     setAllTags(tags);
   }, [prompts]);
 
-  const hasActiveFilters = searchQuery.length > 0 || selectedTags.length > 0;
+  const hasActiveFilters = searchQuery.length > 0 || selectedTags.length > 0 || booleanExpression !== null;
+
+  const handleLoadSavedSearch = (search: SavedSearch) => {
+    loadSavedSearch(search);
+  };
+
+  const handleApplyExpression = (expression: BooleanExpression) => {
+    setBooleanExpression(expression, searchQuery || undefined);
+    setShowBooleanBuilder(false);
+  };
+
+  const tagLabel = allTags.length === 1 ? 'tag' : 'tags';
+  const hasBooleanActive = Boolean(booleanExpression) || Boolean(expressionText);
 
   return (
-    <div className="w-full space-y-3">
-      {/* Search Input */}
-      <div className="relative group">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-transform group-focus-within:scale-110" />
-        <Input
-          type="text"
-          placeholder="Search prompts..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 pr-10 focus:ring-2 transition-all"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground hover:rotate-90 transition-all active:scale-75"
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSavedSearchesDialogOpen(true)}
+          className="h-9 gap-2 px-3 text-sm font-medium"
+        >
+          <Bookmark className="h-4 w-4" />
+          <span>Saved searches</span>
+        </Button>
+
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 px-3 text-sm"
+            onClick={clearFilters}
           >
-            <X className="h-4 w-4" />
-          </button>
+            Clear all filters
+          </Button>
         )}
       </div>
 
-      {/* Tag Filter Section */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setShowTagSuggestions(!showTagSuggestions)}
-            className="text-sm text-muted-foreground hover:text-foreground"
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Button
+            variant={hasBooleanActive || showBooleanBuilder ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowBooleanBuilder((open) => !open)}
+            className="h-10 gap-2 px-3 text-sm"
           >
-            {showTagSuggestions ? 'Hide' : 'Show'} tag filters ({allTags.length} tags)
-          </button>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Clear all filters
-            </button>
-          )}
-        </div>
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Boolean filter</span>
+            <span className="sm:hidden">Filter</span>
+          </Button>
 
-        {/* Selected Tags */}
-        {selectedTags.length > 0 && (
-          <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-            {selectedTags.map((tag, index) => (
-              <Badge
-                key={tag}
-                variant="default"
-                className="cursor-pointer hover:scale-110 active:scale-95 transition-transform"
-                onClick={() => toggleTag(tag)}
-                style={{ animationDelay: `${index * 30}ms` }}
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder={booleanExpression ? 'Additional text filter…' : 'Search prompts…'}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-10 w-full rounded-xl border-border/60 pl-11 pr-11 text-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-all hover:text-foreground"
+                title="Clear search"
               >
-                {tag}
-                <X className="ml-1 h-3 w-3" />
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {/* Tag Suggestions */}
-        {showTagSuggestions && (
-          <div className="flex flex-wrap gap-2 p-3 rounded-md border bg-muted/50 animate-in fade-in slide-in-from-top-2 duration-200">
-            {allTags.length > 0 ? (
-              allTags.map((tag, index) => (
-                <Badge
-                  key={tag}
-                  variant={selectedTags.includes(tag) ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground hover:scale-110 transition-all active:scale-95"
-                  onClick={() => toggleTag(tag)}
-                  style={{ animationDelay: `${index * 20}ms` }}
-                >
-                  {tag}
-                </Badge>
-              ))
-            ) : (
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                <span className="text-2xl animate-bounce-slow">🏷️</span>
-                <p>No tags yet. Add tags to your prompts!</p>
-              </div>
+                <X className="h-4 w-4" />
+              </button>
             )}
           </div>
+        </div>
+
+        {booleanExpression && (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-sm">
+            <Filter className="h-4 w-4 text-primary" />
+            <div className="flex-1 min-w-0">
+              {activeSavedSearch ? (
+                <span className="font-medium text-primary">{activeSavedSearch.name}</span>
+              ) : (
+                <code className="truncate text-xs text-primary">{expressionToString(booleanExpression)}</code>
+              )}
+            </div>
+            <button
+              onClick={clearBooleanSearch}
+              className="rounded-full p-1 text-primary/70 transition-colors hover:text-primary"
+              title="Remove boolean filter"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {showBooleanBuilder && (
+          <div className="animate-in fade-in slide-in-from-top-2">
+            <BooleanBuilder
+              allTags={allTags}
+              prompts={prompts}
+              searchQuery={searchQuery}
+              expressionText={expressionText}
+              onExpressionChange={setExpressionText}
+              onApply={handleApplyExpression}
+              onClose={() => setShowBooleanBuilder(false)}
+              isOpen={showBooleanBuilder}
+            />
+          </div>
         )}
       </div>
+
+      {!booleanExpression && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+            <button
+              onClick={() => setShowTagSuggestions(!showTagSuggestions)}
+              className="font-medium text-foreground transition-colors hover:text-primary"
+            >
+              {showTagSuggestions ? 'Hide tag filters' : 'Show tag filters'} ({allTags.length} {tagLabel})
+            </button>
+            {selectedTags.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                Filtering by {selectedTags.length} {selectedTags.length === 1 ? 'tag' : 'tags'}
+              </span>
+            )}
+          </div>
+
+          {selectedTags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {selectedTags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="default"
+                  className="cursor-pointer rounded-full px-3 text-xs transition-transform hover:scale-105"
+                  onClick={() => toggleTag(tag)}
+                >
+                  {tag}
+                  <X className="ml-1 h-3 w-3" />
+                </Badge>
+              ))}
+            </div>
+          )}
+
+        {showTagSuggestions && (
+            <div className="flex flex-wrap gap-2 rounded-xl border border-border/70 bg-muted/40 p-3">
+              {allTags.length > 0 ? (
+                allTags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant={selectedTags.includes(tag) ? 'default' : 'outline'}
+                    className="cursor-pointer rounded-full px-3 text-xs transition-colors hover:bg-primary hover:text-primary-foreground"
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag}
+                  </Badge>
+                ))
+              ) : (
+                <div className="text-xs text-muted-foreground">No tags yet. Add tags to your prompts!</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <SavedSearchesDialog
+        open={savedSearchesDialogOpen}
+        onOpenChange={setSavedSearchesDialogOpen}
+        onLoad={handleLoadSavedSearch}
+        onEdit={(search) => {
+          setExpressionText(expressionToString(search.expression));
+          setShowBooleanBuilder(true);
+          setSavedSearchesDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

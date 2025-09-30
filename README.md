@@ -1,8 +1,8 @@
-# PermaPocket
+# Pocket Prompt
 
 > Your permanent, decentralized prompt library powered by Arweave
 
-PermaPocket is a fully client-side, web-based application for managing and storing AI prompts on Arweave's permanent blockchain storage. Built with React, TypeScript, and Tailwind CSS.
+Pocket Prompt is a fully client-side, web-based application for managing and storing AI prompts on Arweave's permanent blockchain storage. Built with React, TypeScript, and Tailwind CSS.
 
 ## ✨ Features
 
@@ -149,10 +149,10 @@ bunx vitest --ui # Run tests with interactive UI
 ```
 
 ### Environment Setup
-No environment variables needed! PermaPocket is 100% client-side.
+No environment variables needed! Pocket Prompt is 100% client-side.
 
 ### Testing
-PermaPocket has comprehensive test coverage (175 tests) for all core logic:
+Pocket Prompt has comprehensive test coverage (175 tests) for all core logic:
 - Storage operations (localStorage)
 - Search and indexing (FlexSearch)
 - Tag filtering and organization
@@ -163,7 +163,7 @@ See [TESTING.md](./TESTING.md) and [EDGE_CASES.md](./EDGE_CASES.md) for details.
 
 ## 🌐 Deployment
 
-PermaPocket can be deployed to any static hosting service:
+Pocket Prompt can be deployed to any static hosting service:
 
 ### Vercel / Netlify / Static Hosts
 ```bash

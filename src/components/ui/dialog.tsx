@@ -1,4 +1,5 @@
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { X } from "lucide-react"
 
@@ -42,7 +43,7 @@ DialogTrigger.displayName = "DialogTrigger"
 const DialogPortal = ({ children }: { children: React.ReactNode }) => {
   const { open } = React.useContext(DialogContext)
   if (!open) return null
-  return <>{children}</>
+  return createPortal(children, document.body)
 }
 
 const DialogOverlay = React.forwardRef<
@@ -76,7 +77,7 @@ const DialogContent = React.forwardRef<
         <div
           ref={ref}
           className={cn(
-            "relative z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
+            "relative grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg sm:rounded-lg",
             className
           )}
           onClick={(e) => e.stopPropagation()}

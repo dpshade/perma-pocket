@@ -13,6 +13,7 @@ import { usePrompts } from '@/hooks/usePrompts';
 import { useInitializeTheme } from '@/hooks/useTheme';
 import type { Prompt, PromptVersion } from '@/types/prompt';
 import { searchPrompts } from '@/lib/search';
+import { evaluateExpression } from '@/lib/boolean';
 
 function App() {
   useInitializeTheme();
@@ -22,6 +23,7 @@ function App() {
     loading,
     searchQuery,
     selectedTags,
+    booleanExpression,
     loadPrompts,
     addPrompt,
     updatePrompt,
@@ -49,15 +51,18 @@ function App() {
     if (showArchived && !prompt.isArchived) return false;
     if (!showArchived && prompt.isArchived) return false;
 
-    // Tag filter
-    if (selectedTags.length > 0) {
+    // Boolean expression filter (takes precedence over simple tag filter)
+    if (booleanExpression) {
+      if (!evaluateExpression(booleanExpression, prompt.tags)) return false;
+    } else if (selectedTags.length > 0) {
+      // Simple tag filter (only applies if no boolean expression)
       const hasAllTags = selectedTags.every(tag =>
         prompt.tags.some(t => t.toLowerCase() === tag.toLowerCase())
       );
       if (!hasAllTags) return false;
     }
 
-    // Search filter
+    // Text search filter (works with both boolean and simple tag filters)
     if (searchQuery) {
       const searchIds = searchPrompts(searchQuery);
       if (!searchIds.includes(prompt.id)) return false;
@@ -116,7 +121,7 @@ function App() {
           <div className="animate-bounce-slow">
             <Folder className="h-16 w-16 sm:h-20 sm:w-20 mx-auto text-primary" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold">PermaPocket</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold">Pocket Prompt</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
             Your permanent, decentralized prompt library powered by Arweave.
             Connect your wallet to get started.
@@ -130,47 +135,43 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Top Row - Logo and Quick Actions */}
-            <div className="flex items-center justify-between gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-                <Folder className="h-5 w-5 sm:h-6 sm:w-6" />
-                <span className="hidden xs:inline">PermaPocket</span>
-                <span className="inline xs:hidden">PP</span>
-              </h1>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-                <WalletButton />
-              </div>
-            </div>
-
-            {/* Second Row - Action Buttons */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
-              <Button
-                variant={showArchived ? "outline" : "ghost"}
-                size="sm"
-                onClick={() => setShowArchived(!showArchived)}
-                className="whitespace-nowrap"
-              >
-                <ArchiveIcon className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">{showArchived ? 'Hide' : 'Show'} Archived</span>
-              </Button>
-              <Button onClick={handleCreateNew} size="sm" className="whitespace-nowrap">
-                <Plus className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">New Prompt</span>
-              </Button>
-            </div>
-
-            {/* Search Bar */}
-            <SearchBar />
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+          <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
+            <Folder className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span>Pocket Prompt</span>
+          </h1>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <WalletButton />
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
+        <section className="mx-auto flex max-w-6xl flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={showArchived ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => setShowArchived(!showArchived)}
+              className="whitespace-nowrap"
+            >
+              <ArchiveIcon className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{showArchived ? 'Hide' : 'Show'} Archived</span>
+              <span className="sm:hidden">Archived</span>
+            </Button>
+            <Button onClick={handleCreateNew} size="sm" className="whitespace-nowrap">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">New Prompt</span>
+              <span className="sm:hidden">New</span>
+            </Button>
+          </div>
+          <SearchBar />
+        </section>
+
+        <section className="mx-auto max-w-6xl">
         {loading ? (
           <div className="text-center py-12">
             <div className="relative inline-block">
@@ -197,7 +198,7 @@ function App() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredPrompts.map(prompt => (
               <PromptCard
                 key={prompt.id}
@@ -211,6 +212,7 @@ function App() {
             ))}
           </div>
         )}
+        </section>
       </main>
 
       {/* Dialogs */}

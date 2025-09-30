@@ -22,13 +22,13 @@ describe('Storage Edge Cases', () => {
 
   describe('Profile Edge Cases', () => {
     it('should handle corrupted profile data in localStorage', () => {
-      localStorage.setItem('permapocket_profile', 'invalid json {{{');
+      localStorage.setItem('pktpmt_profile', 'invalid json {{{');
       const profile = getProfile();
       expect(profile).toBeNull();
     });
 
     it('should handle profile with missing required fields', () => {
-      localStorage.setItem('permapocket_profile', '{"address": null}');
+      localStorage.setItem('pktpmt_profile', '{"address": null}');
       const profile = getProfile();
       expect(profile).not.toBeNull();
       expect(profile?.address).toBeNull();
@@ -177,13 +177,13 @@ describe('Storage Edge Cases', () => {
     });
 
     it('should handle corrupted cache data', () => {
-      localStorage.setItem('permapocket_prompts', 'invalid json');
+      localStorage.setItem('pktpmt_prompts', 'invalid json');
       const cached = getCachedPrompts();
       expect(cached).toEqual({});
     });
 
     it('should handle cache with missing fields', () => {
-      localStorage.setItem('permapocket_prompts', '{"prompt-1": {"id": "1"}}');
+      localStorage.setItem('pktpmt_prompts', '{"prompt-1": {"id": "1"}}');
       const cached = getCachedPrompts();
       expect(cached['prompt-1']).toBeDefined();
     });
@@ -283,25 +283,25 @@ describe('Storage Edge Cases', () => {
 
   describe('Theme Edge Cases', () => {
     it('should handle corrupted theme data', () => {
-      localStorage.setItem('permapocket_theme', '12345');
+      localStorage.setItem('pktpmt_theme', '12345');
       const theme = getTheme();
       expect(theme).toBe('light'); // Should default to light
     });
 
     it('should handle null theme value', () => {
-      localStorage.setItem('permapocket_theme', 'null');
+      localStorage.setItem('pktpmt_theme', 'null');
       const theme = getTheme();
       expect(theme).toBe('light');
     });
 
     it('should handle undefined theme value', () => {
-      localStorage.setItem('permapocket_theme', 'undefined');
+      localStorage.setItem('pktpmt_theme', 'undefined');
       const theme = getTheme();
       expect(theme).toBe('light');
     });
 
     it('should handle empty string theme', () => {
-      localStorage.setItem('permapocket_theme', '');
+      localStorage.setItem('pktpmt_theme', '');
       const theme = getTheme();
       expect(theme).toBe('light');
     });

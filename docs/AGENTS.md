@@ -38,8 +38,8 @@ bunx vitest run src/**/*.edge.test.ts  # Only edge case tests
 
 ### Core Data Flow
 1. User connects ArConnect wallet → initializes/loads profile from localStorage
-2. Profile metadata stored in localStorage under `permapocket:profile:{address}`
-3. Full prompts cached in localStorage under `permapocket:prompts`
+2. Profile metadata stored in localStorage under `pktpmt:profile:{address}`
+3. Full prompts cached in localStorage under `pktpmt:prompts`
 4. On edit, new version uploaded to Arweave → version history preserved
 5. FlexSearch index rebuilt on prompt load for client-side search
 
@@ -68,11 +68,13 @@ Tags use case-insensitive AND logic (all selected tags must match). Archived pro
 
 ### Arweave Upload Tags
 All uploads include comprehensive tags for discoverability:
-- `App-Name: PermaPocket`
-- `Protocol: PermaPocket-v1`
+- `App-Name: Pocket Prompt`
+- `Protocol: Pocket-Prompt-v1`
 - `Type: prompt`
 - `Prompt-Id: {uuid}`
 - `Tag: {tag}` (one per user tag)
+
+**⚠️ CRITICAL WARNING:** The `App-Name` and `Protocol` tags are used to query for a user's library. Changing these tags will make existing prompts undiscoverable, effectively causing users to lose their library. Only modify these tags if you're prepared to handle migration of all existing data.
 
 See `src/lib/arweave.ts:30-54` for full tag structure.
 

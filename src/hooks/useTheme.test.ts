@@ -72,12 +72,12 @@ describe('useTheme Hook', () => {
       result.current.setTheme('dark');
     });
 
-    const stored = localStorage.getItem('permapocket_theme');
+    const stored = localStorage.getItem('pktpmt_theme');
     expect(stored).toBe('dark');
   });
 
   it('should load theme from localStorage', () => {
-    localStorage.setItem('permapocket_theme', 'dark');
+    localStorage.setItem('pktpmt_theme', 'dark');
 
     const { result } = renderHook(() => useTheme());
 
