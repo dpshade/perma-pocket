@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Plus, Archive as ArchiveIcon, Folder } from 'lucide-react';
+import { Plus, Archive as ArchiveIcon, Folder, Upload } from 'lucide-react';
 import { WalletButton } from '@/components/WalletButton';
 import { SearchBar } from '@/components/SearchBar';
 import { PromptCard } from '@/components/PromptCard';
 import { PromptDialog } from '@/components/PromptDialog';
 import { PromptEditor } from '@/components/PromptEditor';
 import { VersionHistory } from '@/components/VersionHistory';
+import { UploadDialog } from '@/components/UploadDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/useWallet';
@@ -14,6 +15,7 @@ import { useInitializeTheme } from '@/hooks/useTheme';
 import type { Prompt, PromptVersion } from '@/types/prompt';
 import { searchPrompts } from '@/lib/search';
 import { evaluateExpression } from '@/lib/boolean';
+import type { FileImportResult } from '@/lib/import';
 
 function App() {
   useInitializeTheme();
@@ -37,6 +39,7 @@ function App() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   // Load prompts when wallet connects
   useEffect(() => {
@@ -114,6 +117,64 @@ function App() {
     }
   };
 
+  const handleBatchImport = async (selectedPrompts: FileImportResult[]) => {
+    let imported = 0;
+    let updated = 0;
+    const errors: string[] = [];
+
+    for (const result of selectedPrompts) {
+      if (!result.success || !result.prompt) continue;
+
+      try {
+        const existingPrompt = prompts.find(p => p.id === result.prompt!.id);
+
+        if (existingPrompt) {
+          // Update existing prompt
+          await updatePrompt(existingPrompt.id, {
+            title: result.prompt!.title,
+            description: result.prompt!.description,
+            content: result.prompt!.content,
+            tags: result.prompt!.tags,
+          });
+          updated++;
+        } else {
+          // Add new prompt
+          await addPrompt({
+            title: result.prompt!.title,
+            description: result.prompt!.description,
+            content: result.prompt!.content,
+            tags: result.prompt!.tags,
+            currentTxId: '',
+            versions: [],
+            isArchived: false,
+            isSynced: false,
+          } as Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>);
+          imported++;
+        }
+      } catch (err) {
+        errors.push(`${result.fileName}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+    }
+
+    // Show summary
+    let message = `Import Complete!\n\n`;
+    if (imported > 0) {
+      message += `✓ ${imported} new prompt${imported !== 1 ? 's' : ''} added\n`;
+    }
+    if (updated > 0) {
+      message += `✓ ${updated} prompt${updated !== 1 ? 's' : ''} updated\n`;
+    }
+    if (errors.length > 0) {
+      message += `\n⚠ ${errors.length} error${errors.length !== 1 ? 's' : ''}:\n`;
+      message += errors.slice(0, 3).join('\n');
+      if (errors.length > 3) {
+        message += `\n... and ${errors.length - 3} more`;
+      }
+    }
+
+    alert(message);
+  };
+
   if (!connected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -146,6 +207,13 @@ function App() {
               <Plus className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">New Prompt</span>
               <span className="sm:hidden">New</span>
+            </Button>
+            <Button onClick={() => setUploadDialogOpen(true)} size="sm" variant="outline" className="whitespace-nowrap">
+              <Upload className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Upload</span>
+              <span className="sm:hidden">
+                <Upload className="h-4 w-4" />
+              </span>
             </Button>
             <div className="h-6 w-px bg-border" />
             <ThemeToggle />
@@ -234,6 +302,13 @@ function App() {
         onOpenChange={setVersionHistoryOpen}
         prompt={selectedPrompt}
         onRestoreVersion={handleRestoreVersion}
+      />
+
+      <UploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onImport={handleBatchImport}
+        existingPromptIds={prompts.map(p => p.id)}
       />
     </div>
   );
