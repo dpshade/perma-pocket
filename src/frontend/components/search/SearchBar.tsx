@@ -93,19 +93,6 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
 
   return (
     <div className="space-y-5">
-      {hasActiveFilters && (
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 px-3 text-sm"
-            onClick={clearFilters}
-          >
-            Clear all filters
-          </Button>
-        </div>
-      )}
-
       <div className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
@@ -265,7 +252,7 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
           )}
 
           {selectedTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {selectedTags.map((tag) => (
                 <Badge
                   key={tag}
@@ -288,6 +275,16 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
                   <X className="ml-1 h-3 w-3 opacity-60 group-hover:opacity-100 transition-opacity" />
                 </Badge>
               ))}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-3 text-xs"
+                  onClick={clearFilters}
+                >
+                  Clear all filters
+                </Button>
+              )}
             </div>
           )}
         </div>

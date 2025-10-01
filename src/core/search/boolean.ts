@@ -108,10 +108,17 @@ function parseSimpleExpression(expr: string): BooleanExpression {
     return parseSimpleExpression(expr.substring(1, expr.length - 1));
   }
 
+  // Remove quotes from tag names (both single and double quotes)
+  let tagValue = expr;
+  if ((tagValue.startsWith('"') && tagValue.endsWith('"')) ||
+      (tagValue.startsWith("'") && tagValue.endsWith("'"))) {
+    tagValue = tagValue.substring(1, tagValue.length - 1);
+  }
+
   // Single tag expression
   return {
     type: 'tag',
-    value: expr,
+    value: tagValue,
   };
 }
 
