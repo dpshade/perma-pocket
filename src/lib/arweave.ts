@@ -1,8 +1,239 @@
 import { TurboFactory, ArconnectSigner } from '@ardrive/turbo-sdk/web';
 import type { Prompt, ArweaveUploadResult } from '@/types/prompt';
-import { prepareContentForUpload, prepareContentForDisplay, shouldEncrypt } from '@/lib/encryption';
+import { prepareContentForUpload, prepareContentForDisplay, shouldEncrypt, clearEncryptionCache } from '@/lib/encryption';
+import { getUploadTags, getQueryFilters } from '@/lib/arweave-config';
 
 const ARWEAVE_GATEWAY = 'https://arweave.net';
+const GRAPHQL_ENDPOINT = 'https://arweave.net/graphql';
+
+// GraphQL response types
+interface GraphQLTag {
+  name: string;
+  value: string;
+}
+
+interface GraphQLNode {
+  id: string;
+  tags: GraphQLTag[];
+  block?: {
+    height: number;
+    timestamp: number;
+  };
+}
+
+interface GraphQLEdge {
+  cursor: string;
+  node: GraphQLNode;
+}
+
+interface GraphQLPageInfo {
+  hasNextPage: boolean;
+}
+
+interface GraphQLTransactionsResponse {
+  data: {
+    transactions: {
+      pageInfo: GraphQLPageInfo;
+      edges: GraphQLEdge[];
+    };
+  };
+}
+
+/**
+ * Query user's prompts from Arweave using GraphQL
+ * Discovers all prompts owned by the wallet address
+ */
+export async function queryUserPrompts(
+  walletAddress: string,
+  cursor?: string
+): Promise<{ txIds: string[]; hasNextPage: boolean; nextCursor: string | null }> {
+  const { protocol } = getQueryFilters();
+
+  const query = `
+    query($owner: String!, $cursor: String) {
+      transactions(
+        owners: [$owner]
+        tags: [
+          { name: "Protocol", values: ["${protocol}"] }
+          { name: "Type", values: ["prompt"] }
+        ]
+        sort: HEIGHT_DESC
+        first: 100
+        after: $cursor
+      ) {
+        pageInfo {
+          hasNextPage
+        }
+        edges {
+          cursor
+          node {
+            id
+            tags {
+              name
+              value
+            }
+            block {
+              height
+              timestamp
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    console.log('[GraphQL] Querying for wallet:', walletAddress);
+
+    const response = await fetch(GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { owner: walletAddress, cursor },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL query failed: ${response.statusText}`);
+    }
+
+    const result: GraphQLTransactionsResponse = await response.json();
+    const { edges, pageInfo } = result.data.transactions;
+
+    const txIds = edges.map(edge => edge.node.id);
+    const nextCursor = edges.length > 0 ? edges[edges.length - 1].cursor : null;
+
+    console.log(`[GraphQL] Found ${txIds.length} transactions for this page (hasNextPage: ${pageInfo.hasNextPage})`);
+    if (txIds.length > 0) {
+      console.log('[GraphQL] Sample transaction:', txIds[0]);
+      console.log('[GraphQL] Tags:', edges[0].node.tags);
+    }
+
+    return {
+      txIds,
+      hasNextPage: pageInfo.hasNextPage,
+      nextCursor,
+    };
+  } catch (error) {
+    console.error('[GraphQL] Query error:', error);
+    return {
+      txIds: [],
+      hasNextPage: false,
+      nextCursor: null,
+    };
+  }
+}
+
+/**
+ * Query all user's prompts with automatic pagination
+ * Returns all transaction IDs across multiple pages
+ */
+export async function queryAllUserPrompts(walletAddress: string): Promise<string[]> {
+  const allTxIds: string[] = [];
+  let hasNextPage = true;
+  let cursor: string | null = null;
+
+  while (hasNextPage) {
+    const result = await queryUserPrompts(walletAddress, cursor || undefined);
+    allTxIds.push(...result.txIds);
+    hasNextPage = result.hasNextPage;
+    cursor = result.nextCursor;
+
+    console.log(`Discovered ${result.txIds.length} prompts. Total: ${allTxIds.length}`);
+
+    // Safety limit to prevent infinite loops
+    if (allTxIds.length > 10000) {
+      console.warn('Reached safety limit of 10000 prompts');
+      break;
+    }
+  }
+
+  return allTxIds;
+}
+
+/**
+ * Query prompts by specific tags (for public discovery)
+ */
+export async function queryPromptsByTags(
+  tags: string[],
+  cursor?: string
+): Promise<{ txIds: string[]; hasNextPage: boolean; nextCursor: string | null }> {
+  const { protocol } = getQueryFilters();
+  const tagFilters = tags.map(tag => `{ name: "Tag", values: ["${tag}"] }`).join('\n');
+
+  const query = `
+    query($cursor: String) {
+      transactions(
+        tags: [
+          { name: "Protocol", values: ["${protocol}"] }
+          { name: "Type", values: ["prompt"] }
+          { name: "Encrypted", values: ["false"] }
+          ${tagFilters}
+        ]
+        sort: HEIGHT_DESC
+        first: 100
+        after: $cursor
+      ) {
+        pageInfo {
+          hasNextPage
+        }
+        edges {
+          cursor
+          node {
+            id
+            tags {
+              name
+              value
+            }
+            block {
+              height
+              timestamp
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await fetch(GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { cursor },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL query failed: ${response.statusText}`);
+    }
+
+    const result: GraphQLTransactionsResponse = await response.json();
+    const { edges, pageInfo } = result.data.transactions;
+
+    const txIds = edges.map(edge => edge.node.id);
+    const nextCursor = edges.length > 0 ? edges[edges.length - 1].cursor : null;
+
+    return {
+      txIds,
+      hasNextPage: pageInfo.hasNextPage,
+      nextCursor,
+    };
+  } catch (error) {
+    console.error('GraphQL query error:', error);
+    return {
+      txIds: [],
+      hasNextPage: false,
+      nextCursor: null,
+    };
+  }
+}
 
 /**
  * Upload a prompt to Arweave using Turbo SDK
@@ -38,40 +269,24 @@ export async function uploadPrompt(
       console.warn(`Prompt size (${sizeInBytes} bytes) exceeds free tier (100 KiB)`);
     }
 
-    // Build comprehensive tags including user-defined ones
-    const tags = [
-      // Required tags
-      { name: 'Content-Type', value: 'application/json' },
-      { name: 'App-Name', value: 'Pocket Prompt' },
-      { name: 'App-Version', value: '1.0.0' },
-
-      // Data identification
-      { name: 'Type', value: 'prompt' },
-      { name: 'Prompt-Id', value: prompt.id },
-      { name: 'Title', value: prompt.title },
-
-      // Metadata
-      { name: 'Description', value: prompt.description || '' },
-      { name: 'Created-At', value: prompt.createdAt.toString() },
-      { name: 'Updated-At', value: prompt.updatedAt.toString() },
-      { name: 'Version', value: prompt.versions.length.toString() },
-
-      // Encryption status
-      { name: 'Encrypted', value: isPublic ? 'false' : 'true' },
-
-      // User-defined tags from prompt
-      ...prompt.tags.map(tag => ({ name: 'Tag', value: tag })),
-
-      // Protocol tags for discoverability
-      { name: 'Protocol', value: 'Pocket-Prompt-v1' },
-      { name: 'Data-Protocol', value: 'Prompt' },
-    ];
+    // Build comprehensive tags from config
+    const tags = getUploadTags(prompt, !isPublic);
 
     // Use upload() method for simple data upload with proper tags
+    console.log('[Upload] Uploading prompt with tags:', {
+      Protocol: tags.find(t => t.name === 'Protocol')?.value,
+      Type: tags.find(t => t.name === 'Type')?.value,
+      Encrypted: tags.find(t => t.name === 'Encrypted')?.value,
+      'Prompt-Id': tags.find(t => t.name === 'Prompt-Id')?.value,
+    });
+
     const result = await turbo.upload({
       data,
       dataItemOpts: { tags },
     });
+
+    console.log('[Upload] Success! Transaction ID:', result.id);
+    console.log('[Upload] ⚠️  GraphQL indexing may take 1-10 minutes. Prompt cached locally for immediate access.');
 
     return {
       id: result.id,
@@ -88,36 +303,293 @@ export async function uploadPrompt(
 }
 
 /**
+ * Archive or restore a prompt on Arweave
+ * This reuploads the prompt with updated archive status but does NOT increment version
+ * Creates a new transaction with the Archived tag updated
+ */
+export async function updatePromptArchiveStatus(
+  prompt: Prompt,
+  isArchived: boolean,
+  arweaveWallet: any
+): Promise<ArweaveUploadResult> {
+  try {
+    // Create ArConnect signer
+    const signer = new ArconnectSigner(arweaveWallet);
+
+    // Create authenticated turbo instance
+    const turbo = TurboFactory.authenticated({ signer });
+
+    // Update the prompt's archive status
+    const updatedPrompt = {
+      ...prompt,
+      isArchived,
+      updatedAt: Date.now(),
+    };
+
+    // Encrypt content if needed (use existing content which may already be encrypted)
+    const isPublic = !shouldEncrypt(prompt.tags);
+    const processedContent = await prepareContentForUpload(prompt.content, prompt.tags);
+
+    // Create upload payload with updated archive status
+    const uploadData = {
+      ...updatedPrompt,
+      content: processedContent,
+    };
+
+    const data = JSON.stringify(uploadData, null, 2);
+
+    // Build comprehensive tags from config (includes Archived tag)
+    const tags = getUploadTags(updatedPrompt, !isPublic);
+
+    console.log('[Archive Update] Uploading prompt with archive status:', {
+      'Prompt-Id': tags.find(t => t.name === 'Prompt-Id')?.value,
+      Archived: tags.find(t => t.name === 'Archived')?.value,
+    });
+
+    const result = await turbo.upload({
+      data,
+      dataItemOpts: { tags },
+    });
+
+    console.log(`[Archive Update] Success! Transaction ID: ${result.id}`);
+    console.log('[Archive Update] ⚠️  GraphQL indexing may take 1-10 minutes. Prompt cached locally for immediate access.');
+
+    return {
+      id: result.id,
+      success: true,
+    };
+  } catch (error) {
+    console.error('Archive update error:', error);
+    return {
+      id: '',
+      success: false,
+      error: error instanceof Error ? error.message : 'Archive update failed',
+    };
+  }
+}
+
+/**
+ * Bulk upload multiple prompts in parallel
+ *
+ * Signature requirements:
+ * - 1 signature for master encryption key (session-cached)
+ * - 1 signature per prompt for upload (ANS-104 data item spec requirement)
+ *
+ * Benefits:
+ * - Parallel uploads (faster than sequential)
+ * - Single encryption signature for all prompts
+ * - All uploads batched in UI as one operation
+ *
+ * Note: ArConnect may show multiple signature prompts (one per prompt).
+ * This is required by the ANS-104 specification - each data item must be signed.
+ */
+export async function bulkUploadPrompts(
+  prompts: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt' | 'currentTxId' | 'versions' | 'isSynced' | 'isArchived'>[],
+  arweaveWallet: any
+): Promise<{ success: boolean; results: ArweaveUploadResult[]; errors: string[] }> {
+  try {
+    console.log(`[Bulk Upload] Starting bulk upload of ${prompts.length} prompts`);
+    console.log('[Bulk Upload] Note: Encryption requires 1 signature, uploads require 1 signature each');
+
+    // Create ArConnect signer
+    const signer = new ArconnectSigner(arweaveWallet);
+
+    // Create authenticated turbo instance
+    const turbo = TurboFactory.authenticated({ signer });
+
+    // Prepare all prompts (this will trigger encryption with 1 signature)
+    const preparedPrompts: Prompt[] = [];
+
+    for (const promptData of prompts) {
+      const prompt: Prompt = {
+        ...promptData,
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        currentTxId: '',
+        versions: [],
+        isArchived: false,
+        isSynced: false,
+      };
+
+      // Encrypt content if needed (uses cached master key after first prompt)
+      const processedContent = await prepareContentForUpload(prompt.content, prompt.tags);
+
+      preparedPrompts.push({ ...prompt, content: processedContent as any });
+    }
+
+    console.log(`[Bulk Upload] Encryption complete. Uploading ${preparedPrompts.length} prompts in parallel...`);
+
+    // Upload all prompts in parallel
+    const uploadPromises = preparedPrompts.map(async (prompt) => {
+      const isPublic = !shouldEncrypt(prompt.tags);
+      const data = JSON.stringify({ ...prompt }, null, 2);
+
+      // Build tags from config
+      const tags = getUploadTags(prompt, !isPublic);
+
+      try {
+        const result = await turbo.upload({
+          data,
+          dataItemOpts: { tags },
+        });
+
+        return {
+          success: true,
+          id: result.id,
+          prompt: {
+            ...prompt,
+            currentTxId: result.id,
+            versions: [{
+              txId: result.id,
+              version: 1,
+              timestamp: Date.now(),
+            }],
+            isSynced: true,
+          },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          id: '',
+          error: error instanceof Error ? error.message : 'Upload failed',
+          prompt,
+        };
+      }
+    });
+
+    const uploadResults = await Promise.all(uploadPromises);
+
+    // Process results
+    const results: ArweaveUploadResult[] = [];
+    const errors: string[] = [];
+
+    uploadResults.forEach((result) => {
+      if (result.success && result.prompt) {
+        results.push({
+          id: result.id,
+          success: true,
+          prompt: result.prompt,
+        });
+      } else {
+        const errorMsg = result.error || `Failed to upload prompt "${result.prompt?.title}"`;
+        errors.push(errorMsg);
+        results.push({
+          id: '',
+          success: false,
+          error: errorMsg,
+        });
+      }
+    });
+
+    const successCount = results.filter(r => r.success).length;
+    console.log(`[Bulk Upload] Complete: ${successCount}/${prompts.length} successful, ${errors.length} failed`);
+    console.log('[Bulk Upload] ⚠️  GraphQL indexing may take 1-10 minutes per prompt. Prompts cached locally for immediate access.');
+
+    return {
+      success: errors.length === 0,
+      results,
+      errors,
+    };
+  } catch (error) {
+    console.error('[Bulk Upload] Bulk upload error:', error);
+    return {
+      success: false,
+      results: [],
+      errors: [error instanceof Error ? error.message : 'Bulk upload failed'],
+    };
+  }
+}
+
+/**
+ * Fetch transaction tags from GraphQL
+ */
+async function fetchTransactionTags(txId: string): Promise<GraphQLTag[]> {
+  const query = `
+    query($id: ID!) {
+      transaction(id: $id) {
+        tags {
+          name
+          value
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await fetch(GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { id: txId },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`GraphQL query failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.data?.transaction?.tags || [];
+  } catch (error) {
+    console.error(`[Fetch Tags] ${txId} - FAILED:`, error);
+    return [];
+  }
+}
+
+/**
  * Fetch a prompt from Arweave by transaction ID
  */
 export async function fetchPrompt(txId: string): Promise<Prompt | null> {
   try {
-    const response = await fetch(`${ARWEAVE_GATEWAY}/${txId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch prompt: ${response.statusText}`);
+    console.log(`[Fetch] Fetching prompt ${txId}...`);
+
+    // Fetch both the data and tags in parallel
+    const [dataResponse, tags] = await Promise.all([
+      fetch(`${ARWEAVE_GATEWAY}/${txId}`),
+      fetchTransactionTags(txId),
+    ]);
+
+    if (!dataResponse.ok) {
+      throw new Error(`Failed to fetch prompt: ${dataResponse.statusText}`);
     }
-    const promptData: any = await response.json();
+    const promptData: any = await dataResponse.json();
+
+    console.log(`[Fetch] ${txId} - Title: "${promptData.title}", Encrypted: ${typeof promptData.content === 'object' && promptData.content.isEncrypted}`);
 
     // Check if content is encrypted and decrypt if needed
     let content = promptData.content;
     if (typeof content === 'object' && content.isEncrypted) {
       try {
+        console.log(`[Fetch] ${txId} - Decrypting...`);
         content = await prepareContentForDisplay(content);
+        console.log(`[Fetch] ${txId} - Decryption successful`);
       } catch (error) {
-        console.error('Decryption error for prompt:', txId, error);
+        console.error(`[Fetch] ${txId} - Decryption FAILED:`, error);
         // If decryption fails, return null so the prompt is skipped
         return null;
       }
     }
 
+    // Read archive status from tags (defaults to false if not found)
+    const archivedTag = tags.find(tag => tag.name === 'Archived');
+    const isArchived = archivedTag?.value === 'true';
+
     const prompt: Prompt = {
       ...promptData,
       content,
+      currentTxId: txId, // Ensure we have the txId we just fetched
+      isSynced: true, // If we fetched it from Arweave, it's synced
+      isArchived, // Override with tag value from Arweave
     };
 
+    console.log(`[Fetch] ${txId} - SUCCESS (Archived: ${isArchived})`);
     return prompt;
   } catch (error) {
-    console.error('Arweave fetch error:', error);
+    console.error(`[Fetch] ${txId} - FAILED:`, error);
     return null;
   }
 }
@@ -190,6 +662,8 @@ export async function disconnectWallet(): Promise<void> {
   if (arweaveWallet) {
     try {
       await arweaveWallet.disconnect();
+      // Clear the encryption session cache
+      clearEncryptionCache();
     } catch (error) {
       console.error('Wallet disconnection error:', error);
     }

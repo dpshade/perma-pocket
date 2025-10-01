@@ -65,8 +65,10 @@ _Record any permission issues or errors here_
 
 **Expected on ViewBlock:**
 - [ ] Content is encrypted (not readable plain text)
-- [ ] Tags include: `Pocket-Prompt-v1`, `Content-Type: application/json`
+- [ ] Tags include: `Pocket-Prompt-v2`, `Content-Type: application/json`
 - [ ] Data structure shows `encryptedContent`, `encryptedKey`, `iv`, `isEncrypted: true`
+
+**Note:** Protocol v2 uses session-based encryption - you'll only sign once per session!
 
 ---
 

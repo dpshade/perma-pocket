@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Prompt, PromptMetadata, BooleanExpression, SavedSearch } from '@/types/prompt';
-import { getProfile, getCachedPrompts, cachePrompt, addPromptToProfile, archivePrompt as archivePromptStorage, restorePrompt as restorePromptStorage } from '@/lib/storage';
-import { fetchPrompt, uploadPrompt, getWalletJWK } from '@/lib/arweave';
+import { getCachedPrompts, cachePrompt, addPromptToProfile, archivePrompt as archivePromptStorage, restorePrompt as restorePromptStorage } from '@/lib/storage';
+import { fetchPrompt, uploadPrompt, getWalletJWK, getWalletAddress, queryAllUserPrompts, updatePromptArchiveStatus } from '@/lib/arweave';
 import { indexPrompts, addToIndex, removeFromIndex } from '@/lib/search';
 
 interface PromptsState {
@@ -16,8 +16,8 @@ interface PromptsState {
   loadPrompts: () => Promise<void>;
   addPrompt: (prompt: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
   updatePrompt: (id: string, updates: Partial<Prompt>) => Promise<boolean>;
-  archivePrompt: (id: string) => void;
-  restorePrompt: (id: string) => void;
+  archivePrompt: (id: string) => Promise<void>;
+  restorePrompt: (id: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   toggleTag: (tag: string) => void;
   clearFilters: () => void;
@@ -38,8 +38,24 @@ export const usePrompts = create<PromptsState>((set, get) => ({
   loadPrompts: async () => {
     set({ loading: true, error: null });
     try {
-      const profile = getProfile();
-      if (!profile) {
+      // Get wallet address for GraphQL query
+      const walletAddress = await getWalletAddress();
+      if (!walletAddress) {
+        console.warn('No wallet connected, loading from cache only');
+        const cached = getCachedPrompts();
+        const cachedPrompts = Object.values(cached);
+        indexPrompts(cachedPrompts);
+        set({ prompts: cachedPrompts, loading: false });
+        return;
+      }
+
+      console.log('Discovering prompts for wallet:', walletAddress);
+
+      // Query all user's prompts from Arweave via GraphQL
+      const discoveredTxIds = await queryAllUserPrompts(walletAddress);
+      console.log(`Discovered ${discoveredTxIds.length} prompts via GraphQL`);
+
+      if (discoveredTxIds.length === 0) {
         set({ prompts: [], loading: false });
         return;
       }
@@ -48,32 +64,56 @@ export const usePrompts = create<PromptsState>((set, get) => ({
       const cachedPrompts: Prompt[] = [];
       const toFetch: string[] = [];
 
-      // Check what we have cached
-      profile.prompts.forEach(meta => {
-        const cachedPrompt = cached[meta.id];
+      // Check what we have cached by txId
+      discoveredTxIds.forEach(txId => {
+        // Find cached prompt by matching currentTxId or any version txId
+        const cachedPrompt = Object.values(cached).find(
+          p => p.currentTxId === txId || p.versions.some(v => v.txId === txId)
+        );
+
         if (cachedPrompt) {
           cachedPrompts.push(cachedPrompt);
         } else {
-          toFetch.push(meta.currentTxId);
+          toFetch.push(txId);
         }
       });
 
-      // Fetch missing prompts from Arweave
+      console.log(`Found ${cachedPrompts.length} in cache, fetching ${toFetch.length} from Arweave`);
+
+      // Fetch missing prompts from Arweave in parallel
       if (toFetch.length > 0) {
         const fetched = await Promise.all(
           toFetch.map(txId => fetchPrompt(txId))
         );
 
+        const successful = fetched.filter(p => p !== null);
+        const failed = fetched.length - successful.length;
+
+        console.log(`[LoadPrompts] Fetch results: ${successful.length} successful, ${failed} failed`);
+
         fetched.forEach(prompt => {
           if (prompt) {
             cachePrompt(prompt);
             cachedPrompts.push(prompt);
+
+            // Update profile metadata for backward compatibility
+            const metadata: PromptMetadata = {
+              id: prompt.id,
+              title: prompt.title,
+              tags: prompt.tags,
+              currentTxId: prompt.currentTxId,
+              updatedAt: prompt.updatedAt,
+              isArchived: prompt.isArchived || false,
+            };
+            addPromptToProfile(metadata);
           }
         });
       }
 
       // Index all prompts for search
       indexPrompts(cachedPrompts);
+
+      console.log(`[LoadPrompts] Final count: ${cachedPrompts.length} prompts loaded into state`);
 
       set({ prompts: cachedPrompts, loading: false });
     } catch (error) {
@@ -198,7 +238,11 @@ export const usePrompts = create<PromptsState>((set, get) => ({
     }
   },
 
-  archivePrompt: (id) => {
+  archivePrompt: async (id) => {
+    const prompt = get().prompts.find(p => p.id === id);
+    if (!prompt) return;
+
+    // Optimistically update UI immediately
     archivePromptStorage(id);
     removeFromIndex(id);
     set(state => ({
@@ -206,11 +250,62 @@ export const usePrompts = create<PromptsState>((set, get) => ({
         p.id === id ? { ...p, isArchived: true } : p
       ),
     }));
+
+    // Upload to Arweave in background with updated archive tag
+    try {
+      const jwk = await getWalletJWK();
+      const result = await updatePromptArchiveStatus(prompt, true, jwk);
+
+      if (result.success) {
+        // Update with new txId and version entry
+        const updatedPrompt: Prompt = {
+          ...prompt,
+          isArchived: true,
+          currentTxId: result.id,
+          versions: [
+            ...prompt.versions,
+            {
+              txId: result.id,
+              version: prompt.versions.length, // Same version number (not incremented)
+              timestamp: Date.now(),
+              changeNote: 'Archived',
+            },
+          ],
+          isSynced: true,
+        };
+
+        // Update cache and profile
+        cachePrompt(updatedPrompt);
+        const metadata: PromptMetadata = {
+          id: updatedPrompt.id,
+          title: updatedPrompt.title,
+          tags: updatedPrompt.tags,
+          currentTxId: updatedPrompt.currentTxId,
+          updatedAt: updatedPrompt.updatedAt,
+          isArchived: true,
+        };
+        addPromptToProfile(metadata);
+
+        // Update state with new txId
+        set(state => ({
+          prompts: state.prompts.map(p =>
+            p.id === id ? updatedPrompt : p
+          ),
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to archive prompt on Arweave:', error);
+      // UI already updated optimistically, so user sees immediate feedback
+      // Background sync will retry on next load
+    }
   },
 
-  restorePrompt: (id) => {
-    restorePromptStorage(id);
+  restorePrompt: async (id) => {
     const prompt = get().prompts.find(p => p.id === id);
+    if (!prompt) return;
+
+    // Optimistically update UI immediately
+    restorePromptStorage(id);
     if (prompt) {
       addToIndex({ ...prompt, isArchived: false });
     }
@@ -219,6 +314,54 @@ export const usePrompts = create<PromptsState>((set, get) => ({
         p.id === id ? { ...p, isArchived: false } : p
       ),
     }));
+
+    // Upload to Arweave in background with updated archive tag
+    try {
+      const jwk = await getWalletJWK();
+      const result = await updatePromptArchiveStatus(prompt, false, jwk);
+
+      if (result.success) {
+        // Update with new txId and version entry
+        const updatedPrompt: Prompt = {
+          ...prompt,
+          isArchived: false,
+          currentTxId: result.id,
+          versions: [
+            ...prompt.versions,
+            {
+              txId: result.id,
+              version: prompt.versions.length, // Same version number (not incremented)
+              timestamp: Date.now(),
+              changeNote: 'Restored from archive',
+            },
+          ],
+          isSynced: true,
+        };
+
+        // Update cache and profile
+        cachePrompt(updatedPrompt);
+        const metadata: PromptMetadata = {
+          id: updatedPrompt.id,
+          title: updatedPrompt.title,
+          tags: updatedPrompt.tags,
+          currentTxId: updatedPrompt.currentTxId,
+          updatedAt: updatedPrompt.updatedAt,
+          isArchived: false,
+        };
+        addPromptToProfile(metadata);
+
+        // Update state with new txId
+        set(state => ({
+          prompts: state.prompts.map(p =>
+            p.id === id ? updatedPrompt : p
+          ),
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to restore prompt on Arweave:', error);
+      // UI already updated optimistically, so user sees immediate feedback
+      // Background sync will retry on next load
+    }
   },
 
   setSearchQuery: (query) => {

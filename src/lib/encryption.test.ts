@@ -3,6 +3,7 @@ import {
   isEncrypted,
   shouldEncrypt,
   isPromptEncrypted,
+  wasPromptEncrypted,
   encryptContent,
   decryptContent,
   prepareContentForUpload,
@@ -96,6 +97,30 @@ describe('Encryption Utilities', () => {
         expect(isPromptEncrypted({ isEncrypted: true })).toBe(false);
       });
     });
+
+    describe('wasPromptEncrypted', () => {
+      it('should return true for prompts without public tag', () => {
+        expect(wasPromptEncrypted(['work', 'draft'])).toBe(true);
+        expect(wasPromptEncrypted(['private'])).toBe(true);
+        expect(wasPromptEncrypted([])).toBe(true);
+      });
+
+      it('should return false for prompts with public tag', () => {
+        expect(wasPromptEncrypted(['public'])).toBe(false);
+        expect(wasPromptEncrypted(['work', 'public', 'draft'])).toBe(false);
+      });
+
+      it('should be case-insensitive for public tag', () => {
+        expect(wasPromptEncrypted(['PUBLIC'])).toBe(false);
+        expect(wasPromptEncrypted(['Public'])).toBe(false);
+        expect(wasPromptEncrypted(['PuBLiC'])).toBe(false);
+      });
+
+      it('should return true when public is not exact match', () => {
+        expect(wasPromptEncrypted(['publicize'])).toBe(true);
+        expect(wasPromptEncrypted(['republic'])).toBe(true);
+      });
+    });
   });
 
   describe('Encryption and Decryption Flow', () => {
@@ -119,15 +144,19 @@ describe('Encryption Utilities', () => {
         expect(typeof encrypted.iv).toBe('string');
       });
 
-      it('should call wallet encrypt method', async () => {
+      it('should call wallet signature method for session key', async () => {
         await encryptContent(testContent);
-        expect(window.arweaveWallet.encrypt).toHaveBeenCalledWith(
-          expect.any(Uint8Array),
-          {
-            algorithm: 'RSA-OAEP',
-            hash: 'SHA-256',
-          }
-        );
+        // Session-based encryption uses signature() to derive master key
+        expect(window.arweaveWallet.signature).toHaveBeenCalled();
+
+        // Verify the call includes the right algorithm parameters
+        const call = (window.arweaveWallet.signature as any).mock.calls[0];
+        expect(call[0]).toBeTruthy(); // Message data
+        expect(call[0].length).toBeGreaterThan(0); // Has content
+        expect(call[1]).toMatchObject({
+          name: 'RSA-PSS',
+          saltLength: 32,
+        });
       });
 
       it('should throw error when wallet is not connected', async () => {
@@ -161,19 +190,14 @@ describe('Encryption Utilities', () => {
         expect(decrypted).toBe(testContent);
       });
 
-      it('should call wallet decrypt method', async () => {
+      it('should use cached session key (no additional signatures)', async () => {
         const encrypted = await encryptContent(testContent);
-        vi.clearAllMocks(); // Clear the encrypt call
+        vi.clearAllMocks(); // Clear the signature call from encryption
 
         await decryptContent(encrypted);
 
-        expect(window.arweaveWallet.decrypt).toHaveBeenCalledWith(
-          expect.any(Uint8Array),
-          {
-            algorithm: 'RSA-OAEP',
-            hash: 'SHA-256',
-          }
-        );
+        // Decryption should NOT call signature() again since the session key is cached
+        expect(window.arweaveWallet.signature).not.toHaveBeenCalled();
       });
 
       it('should throw error when wallet is not connected', async () => {
@@ -239,14 +263,14 @@ describe('Encryption Utilities', () => {
         ]);
 
         expect(isEncrypted(result)).toBe(true);
-        expect(window.arweaveWallet.encrypt).toHaveBeenCalled();
+        expect(window.arweaveWallet.signature).toHaveBeenCalled();
       });
 
       it('should not encrypt content when tags include public', async () => {
         const result = await prepareContentForUpload(testContent, ['public']);
 
         expect(result).toBe(testContent);
-        expect(window.arweaveWallet.encrypt).not.toHaveBeenCalled();
+        expect(window.arweaveWallet.signature).not.toHaveBeenCalled();
       });
 
       it('should handle case-insensitive public tag', async () => {
@@ -298,31 +322,30 @@ describe('Encryption Utilities', () => {
 
   describe('Error Handling', () => {
     it('should handle encryption errors gracefully', async () => {
-      const originalEncrypt = window.arweaveWallet.encrypt;
-      window.arweaveWallet.encrypt = vi
+      const originalSignature = window.arweaveWallet.signature;
+      window.arweaveWallet.signature = vi
         .fn()
-        .mockRejectedValue(new Error('Encryption failed'));
+        .mockRejectedValue(new Error('Signature failed'));
 
       await expect(encryptContent('test')).rejects.toThrow(
         'Failed to encrypt content'
       );
 
-      window.arweaveWallet.encrypt = originalEncrypt;
+      window.arweaveWallet.signature = originalSignature;
     });
 
     it('should handle decryption errors gracefully', async () => {
       const encrypted = await encryptContent('test');
 
-      const originalDecrypt = window.arweaveWallet.decrypt;
-      window.arweaveWallet.decrypt = vi
-        .fn()
-        .mockRejectedValue(new Error('Decryption failed'));
+      // Corrupt the encrypted key to cause decryption failure
+      const corruptedData = {
+        ...encrypted,
+        encryptedKey: 'corrupted-invalid-data',
+      };
 
-      await expect(decryptContent(encrypted)).rejects.toThrow(
+      await expect(decryptContent(corruptedData)).rejects.toThrow(
         'Failed to decrypt content'
       );
-
-      window.arweaveWallet.decrypt = originalDecrypt;
     });
 
     it('should handle invalid encrypted data structure', async () => {

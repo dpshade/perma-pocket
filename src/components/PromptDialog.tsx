@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Prompt } from '@/types/prompt';
 import { useState } from 'react';
-import { isPromptEncrypted } from '@/lib/encryption';
+import { wasPromptEncrypted } from '@/lib/encryption';
 
 interface PromptDialogProps {
   open: boolean;
@@ -27,7 +27,7 @@ export function PromptDialog({
 
   if (!prompt) return null;
 
-  const isEncrypted = isPromptEncrypted(prompt.content);
+  const isEncrypted = wasPromptEncrypted(prompt.tags);
   const isPublic = !isEncrypted;
 
   const handleCopy = () => {

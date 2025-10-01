@@ -37,11 +37,14 @@ bunx vitest run src/**/*.edge.test.ts  # Only edge case tests
 - **Wallet:** ArConnect browser extension
 
 ### Core Data Flow
-1. User connects ArConnect wallet → initializes/loads profile from localStorage
-2. Profile metadata stored in localStorage under `pktpmt:profile:{address}`
-3. Full prompts cached in localStorage under `pktpmt:prompts`
-4. On edit, new version uploaded to Arweave → version history preserved
-5. FlexSearch index rebuilt on prompt load for client-side search
+1. User connects ArConnect wallet → queries Arweave via GraphQL for all prompts
+2. GraphQL discovers all transactions with `Protocol: Pocket-Prompt-v2` + owner address
+3. Full prompts fetched from Arweave and cached in localStorage under `pktpmt:prompts`
+4. Profile metadata stored in localStorage for backward compatibility
+5. On edit, new version uploaded to Arweave → version history preserved
+6. FlexSearch index rebuilt on prompt load for client-side search
+
+**⚠️ GraphQL Indexing Delay:** After uploading a prompt, it may take 1-10 minutes for Arweave's GraphQL indexer to make it discoverable. During this time, the prompt is cached locally and accessible, but won't appear if you clear localStorage or use a different device.
 
 ### State Management (Zustand)
 - **useWallet** (`src/hooks/useWallet.ts`): Wallet connection state
@@ -69,14 +72,28 @@ Tags use case-insensitive AND logic (all selected tags must match). Archived pro
 ### Arweave Upload Tags
 All uploads include comprehensive tags for discoverability:
 - `App-Name: Pocket Prompt`
-- `Protocol: Pocket-Prompt-v1`
+- `Protocol: Pocket-Prompt-v3` (session-based encryption)
 - `Type: prompt`
 - `Prompt-Id: {uuid}`
 - `Tag: {tag}` (one per user tag)
+- `Encrypted: true|false`
 
-**⚠️ CRITICAL WARNING:** The `App-Name` and `Protocol` tags are used to query for a user's library. Changing these tags will make existing prompts undiscoverable, effectively causing users to lose their library. Only modify these tags if you're prepared to handle migration of all existing data.
+**⚠️ PROTOCOL VERSION HISTORY:**
+- **v1:** Per-transaction RSA encryption (deprecated, incompatible)
+- **v2:** Hybrid period - v2 tags but some used v1 encryption (incompatible)
+- **v3:** Session-based encryption (current)
 
-See `src/lib/arweave.ts:30-54` for full tag structure.
+GraphQL queries only search for v3 prompts. Old v1/v2 prompts are not backward compatible and will be ignored.
+
+The `App-Name` and `Protocol` tags are used in GraphQL queries to discover a user's library.
+
+**Encryption Architecture (v3):**
+- First operation per session: User signs once to derive master encryption key via PBKDF2
+- All subsequent operations: Use cached master key (zero additional signatures)
+- Session key cleared on wallet disconnect
+- Provides strong encryption without signature spam
+
+See `src/lib/arweave.ts` for full tag structure and `src/lib/encryption.ts` for session-based encryption implementation.
 
 ### FlexSearch Index Management
 The search index must be completely reinitialized (not just cleared) to avoid internal state issues. Always use:
@@ -188,7 +205,7 @@ bunx shadcn-ui@latest add [component-name]
 
 1. **ArConnect Only**: No support for other Arweave wallets yet
 2. **Free Tier Size**: Uploads over 100 KiB require payment (Turbo credits)
-3. **No GraphQL Queries**: Prompts discovered via local profile, not blockchain queries
+3. **GraphQL Indexing Delay**: Newly uploaded prompts take 1-10 minutes to become discoverable via GraphQL. They're cached locally for immediate access, but won't sync across devices until indexed.
 4. **No PWA**: Offline mode not implemented (could use service workers)
 5. **Client-side Only**: No backend = no server-side rendering/indexing
 

@@ -45,6 +45,7 @@ export interface ArweaveUploadResult {
   id: string;
   success: boolean;
   error?: string;
+  prompt?: Prompt; // Optional, used for bulk uploads to return the full prompt with txId
 }
 
 export interface SavedSearch {

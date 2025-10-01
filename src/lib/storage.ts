@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   PROMPTS: 'pktpmt_prompts',
   THEME: 'pktpmt_theme',
   SAVED_SEARCHES: 'pktpmt_saved_searches',
+  VIEW_MODE: 'pktpmt_view_mode',
 } as const;
 
 /**
@@ -235,4 +236,27 @@ export function deleteSavedSearch(id: string): void {
 export function getSavedSearch(id: string): SavedSearch | null {
   const searches = getSavedSearches();
   return searches.find(s => s.id === id) || null;
+}
+
+/**
+ * Get view mode preference (list or cards)
+ */
+export function getViewMode(): 'list' | 'cards' {
+  try {
+    const mode = localStorage.getItem(STORAGE_KEYS.VIEW_MODE);
+    return mode === 'cards' ? 'cards' : 'list'; // Default to list
+  } catch {
+    return 'list';
+  }
+}
+
+/**
+ * Save view mode preference
+ */
+export function saveViewMode(mode: 'list' | 'cards'): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.VIEW_MODE, mode);
+  } catch (error) {
+    console.error('Error saving view mode:', error);
+  }
 }

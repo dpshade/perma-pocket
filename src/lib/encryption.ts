@@ -1,11 +1,11 @@
 /**
  * Encryption utilities for Pocket Prompt using Arweave wallet
  *
- * Uses hybrid encryption:
- * 1. Generate random AES-256 key for content
- * 2. Encrypt content with AES (fast for large data)
- * 3. Encrypt AES key with wallet's RSA public key
- * 4. Store both encrypted content and encrypted key
+ * New approach: Session-based encryption
+ * 1. User signs a standard message once per session
+ * 2. Derive a master AES-256 key from the signature
+ * 3. Use this key to encrypt/decrypt all prompt content
+ * 4. No more signatures required after initial setup
  */
 
 export interface EncryptedData {
@@ -20,6 +20,11 @@ export interface DecryptedData {
   isEncrypted: false;
 }
 
+// Session cache for the derived master key
+let sessionMasterKey: CryptoKey | null = null;
+let currentWalletAddress: string | null = null;
+let pendingKeyDerivation: Promise<CryptoKey> | null = null;
+
 /**
  * Check if content is encrypted
  */
@@ -28,7 +33,7 @@ export function isEncrypted(data: any): data is EncryptedData {
 }
 
 /**
- * Generate a random AES key
+ * Generate a random AES key for content encryption
  */
 async function generateAESKey(): Promise<CryptoKey> {
   return await crypto.subtle.generateKey(
@@ -55,7 +60,6 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 /**
  * Convert Base64 string to Uint8Array
- * Returns Uint8Array which is compatible with Web Crypto API
  */
 function base64ToArrayBuffer(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -67,62 +71,155 @@ function base64ToArrayBuffer(base64: string): Uint8Array {
 }
 
 /**
- * Encrypt content using hybrid encryption with Arweave wallet
+ * Derive a master encryption key from wallet signature
+ * This only requires ONE signature per session
+ * Uses a pending promise to prevent race conditions during parallel decryption
+ */
+async function getOrCreateMasterKey(): Promise<CryptoKey> {
+  if (!window.arweaveWallet) {
+    throw new Error('Arweave wallet not connected');
+  }
+
+  // Get current wallet address
+  const address = await window.arweaveWallet.getActiveAddress();
+
+  // If we have a cached key for this wallet, use it
+  if (sessionMasterKey && currentWalletAddress === address) {
+    console.log('[Encryption] Using cached master key');
+    return sessionMasterKey;
+  }
+
+  // If key derivation is already in progress, wait for it
+  if (pendingKeyDerivation) {
+    console.log('[Encryption] Master key derivation in progress, waiting...');
+    return await pendingKeyDerivation;
+  }
+
+  // Start new key derivation and cache the promise
+  console.log('[Encryption] Deriving master encryption key (requires one signature)...');
+
+  pendingKeyDerivation = (async () => {
+    try {
+      // Standard message to sign
+      const message = new TextEncoder().encode(
+        `Pocket Prompt Encryption Key\nWallet: ${address}\nThis signature creates your encryption key for this session.`
+      );
+
+      // Get wallet signature (this is the ONLY signature needed)
+      const signature = await window.arweaveWallet.signature(message, {
+        name: 'RSA-PSS',
+        saltLength: 32,
+      });
+
+      // Convert signature to Uint8Array if needed
+      const signatureBytes = signature instanceof Uint8Array
+        ? signature
+        : new Uint8Array(signature);
+
+      // Derive a cryptographic key from the signature using PBKDF2
+      const importedKey = await crypto.subtle.importKey(
+        'raw',
+        signatureBytes,
+        'PBKDF2',
+        false,
+        ['deriveBits', 'deriveKey']
+      );
+
+      const salt = new TextEncoder().encode(`pocket-prompt-${address}`);
+
+      const masterKey = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 100000,
+          hash: 'SHA-256',
+        },
+        importedKey,
+        {
+          name: 'AES-GCM',
+          length: 256,
+        },
+        false,
+        ['encrypt', 'decrypt']
+      );
+
+      // Cache for this session
+      sessionMasterKey = masterKey;
+      currentWalletAddress = address;
+
+      console.log('[Encryption] Master encryption key derived successfully');
+
+      return masterKey;
+    } finally {
+      // Clear pending promise once complete (success or failure)
+      pendingKeyDerivation = null;
+    }
+  })();
+
+  return await pendingKeyDerivation;
+}
+
+/**
+ * Clear the cached master key (call on wallet disconnect)
+ */
+export function clearEncryptionCache(): void {
+  sessionMasterKey = null;
+  currentWalletAddress = null;
+  pendingKeyDerivation = null;
+  console.log('[Encryption] Cache cleared');
+}
+
+/**
+ * Encrypt content using session-based encryption
+ * Only requires ONE signature per session (for master key derivation)
  */
 export async function encryptContent(content: string): Promise<EncryptedData> {
   try {
-    // Check if ArConnect is available
-    if (!window.arweaveWallet) {
-      throw new Error('Arweave wallet not connected');
-    }
+    // Get or create master key (only requires signature on first call)
+    const masterKey = await getOrCreateMasterKey();
 
-    // Generate random AES key
-    const aesKey = await generateAESKey();
+    // Generate random AES key for this content
+    const contentKey = await generateAESKey();
 
-    // Generate random IV for AES-GCM
-    const iv = crypto.getRandomValues(new Uint8Array(12));
+    // Generate random IV for content encryption
+    const contentIv = crypto.getRandomValues(new Uint8Array(12));
 
-    // Encrypt content with AES
+    // Encrypt content with the content key
     const encoder = new TextEncoder();
     const contentBuffer = encoder.encode(content);
     const encryptedContentBuffer = await crypto.subtle.encrypt(
       {
         name: 'AES-GCM',
-        iv: iv,
+        iv: contentIv,
       },
-      aesKey,
+      contentKey,
       contentBuffer
     );
 
-    // Export AES key to raw format
-    const rawAESKey = await crypto.subtle.exportKey('raw', aesKey);
+    // Export content key to raw format
+    const rawContentKey = await crypto.subtle.exportKey('raw', contentKey);
 
-    // Encrypt the AES key with wallet's public key
-    const wallet: any = window.arweaveWallet;
-    const encryptedKeyResult: any = await wallet.encrypt(
-      new Uint8Array(rawAESKey),
+    // Encrypt the content key with the master key
+    const keyIv = crypto.getRandomValues(new Uint8Array(12));
+    const encryptedKeyBuffer = await crypto.subtle.encrypt(
       {
-        algorithm: 'RSA-OAEP',
-        hash: 'SHA-256',
-      }
+        name: 'AES-GCM',
+        iv: keyIv,
+      },
+      masterKey,
+      rawContentKey
     );
 
-    // Handle different return types from wallet.encrypt
-    let encryptedKeyBuffer: ArrayBuffer;
-    if (encryptedKeyResult instanceof ArrayBuffer) {
-      encryptedKeyBuffer = encryptedKeyResult;
-    } else if (encryptedKeyResult instanceof Uint8Array) {
-      encryptedKeyBuffer = encryptedKeyResult.buffer;
-    } else {
-      // Fallback: try to get the buffer property
-      encryptedKeyBuffer = encryptedKeyResult.buffer;
-    }
+    // Combine key IV and encrypted key
+    const combinedKeyData = new Uint8Array(keyIv.length + new Uint8Array(encryptedKeyBuffer).length);
+    combinedKeyData.set(keyIv, 0);
+    combinedKeyData.set(new Uint8Array(encryptedKeyBuffer), keyIv.length);
 
     // Convert to base64 for storage
     return {
       encryptedContent: arrayBufferToBase64(encryptedContentBuffer),
-      encryptedKey: arrayBufferToBase64(encryptedKeyBuffer),
-      iv: arrayBufferToBase64(iv),
+      encryptedKey: arrayBufferToBase64(combinedKeyData.buffer),
+      iv: arrayBufferToBase64(contentIv),
       isEncrypted: true,
     };
   } catch (error) {
@@ -132,44 +229,31 @@ export async function encryptContent(content: string): Promise<EncryptedData> {
 }
 
 /**
- * Decrypt content using hybrid encryption with Arweave wallet
+ * Decrypt content using session-based encryption
+ * Uses cached master key (no signature required after first call)
  */
 export async function decryptContent(encryptedData: EncryptedData): Promise<string> {
   try {
-    // Check if ArConnect is available
-    if (!window.arweaveWallet) {
-      throw new Error('Arweave wallet not connected');
-    }
+    // Get master key (uses cached version if available)
+    const masterKey = await getOrCreateMasterKey();
 
-    // Convert from base64
-    const encryptedContentBuffer = base64ToArrayBuffer(encryptedData.encryptedContent);
-    const encryptedKeyBuffer = base64ToArrayBuffer(encryptedData.encryptedKey);
-    const iv = base64ToArrayBuffer(encryptedData.iv);
+    // Parse encrypted key data (contains IV + encrypted key)
+    const combinedKeyData = base64ToArrayBuffer(encryptedData.encryptedKey);
+    const keyIv = combinedKeyData.slice(0, 12);
+    const encryptedKeyBuffer = combinedKeyData.slice(12);
 
-    // Decrypt the AES key with wallet's private key
-    const decryptedKeyResult: any = await window.arweaveWallet.decrypt(
-      new Uint8Array(encryptedKeyBuffer),
+    // Decrypt the content key using the master key
+    const decryptedKeyBuffer = await crypto.subtle.decrypt(
       {
-        algorithm: 'RSA-OAEP',
-        hash: 'SHA-256',
-      }
+        name: 'AES-GCM',
+        iv: keyIv,
+      },
+      masterKey,
+      encryptedKeyBuffer
     );
 
-    // Ensure we have a proper buffer for importKey
-    // importKey accepts ArrayBuffer, TypedArray, or DataView
-    let decryptedKeyBuffer: ArrayBuffer | Uint8Array;
-    if (decryptedKeyResult instanceof ArrayBuffer) {
-      decryptedKeyBuffer = decryptedKeyResult;
-    } else if (decryptedKeyResult instanceof Uint8Array) {
-      // Use the Uint8Array directly - importKey accepts TypedArrays
-      decryptedKeyBuffer = decryptedKeyResult;
-    } else {
-      // Fallback: try to get the buffer property
-      decryptedKeyBuffer = decryptedKeyResult.buffer;
-    }
-
-    // Import the decrypted AES key
-    const aesKey = await crypto.subtle.importKey(
+    // Import the decrypted content key
+    const contentKey = await crypto.subtle.importKey(
       'raw',
       decryptedKeyBuffer,
       {
@@ -180,13 +264,16 @@ export async function decryptContent(encryptedData: EncryptedData): Promise<stri
       ['decrypt']
     );
 
-    // Decrypt content with AES
+    // Decrypt content
+    const encryptedContentBuffer = base64ToArrayBuffer(encryptedData.encryptedContent);
+    const contentIv = base64ToArrayBuffer(encryptedData.iv);
+
     const decryptedContentBuffer = await crypto.subtle.decrypt(
       {
         name: 'AES-GCM',
-        iv: new Uint8Array(iv),
+        iv: contentIv,
       },
-      aesKey,
+      contentKey,
       encryptedContentBuffer
     );
 
@@ -221,6 +308,16 @@ export function isPromptEncrypted(content: string | any): boolean {
 
   // If it's an object with encryption markers, it's encrypted
   return isEncrypted(content);
+}
+
+/**
+ * Check if a prompt was encrypted based on its tags
+ * Use this to determine the encryption status for UI display
+ * (After decryption, content is a string, so we check tags instead)
+ */
+export function wasPromptEncrypted(tags: string[]): boolean {
+  // Check if prompt has the "public" tag (case-insensitive)
+  return !tags.some(tag => tag.toLowerCase() === 'public');
 }
 
 /**

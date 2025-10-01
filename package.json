@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@ardrive/turbo-sdk": "^1.31.1",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
     "arweave": "^1.15.7",
     "clsx": "^2.1.1",
     "flexsearch": "^0.8.212",

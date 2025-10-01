@@ -14,7 +14,7 @@
       },
       {
         "name": "App-Version",
-        "value": "1.0.0",
+        "value": "2.0.0",
         "description": "Application version"
       },
       {
@@ -24,8 +24,8 @@
       },
       {
         "name": "Protocol",
-        "value": "Pocket-Prompt-v1",
-        "description": "Protocol identifier for discoverability"
+        "value": "Pocket-Prompt-v3",
+        "description": "Protocol identifier for discoverability (v3 uses session-based encryption)"
       },
       {
         "name": "Data-Protocol",
@@ -72,6 +72,12 @@
         "name": "Encrypted",
         "source": "computed",
         "description": "Encryption status (true/false)"
+      },
+      {
+        "name": "Archived",
+        "source": "prompt.isArchived",
+        "transform": "boolean",
+        "description": "Archive status (true/false) - syncs across devices"
       }
     ],
     "arrayTags": [
@@ -92,8 +98,8 @@
       },
       {
         "name": "Protocol",
-        "values": ["Pocket-Prompt-v1"],
-        "description": "Filter by protocol version"
+        "values": ["Pocket-Prompt-v3"],
+        "description": "Filter by protocol version (v3 = session-based encryption)"
       }
     ],
     "owner": {

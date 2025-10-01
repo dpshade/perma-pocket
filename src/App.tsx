@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Plus, Archive as ArchiveIcon, Folder, Upload } from 'lucide-react';
+import { Plus, Archive as ArchiveIcon, Folder, Upload, LayoutGrid, List, MoreVertical } from 'lucide-react';
 import { WalletButton } from '@/components/WalletButton';
 import { SearchBar } from '@/components/SearchBar';
 import { PromptCard } from '@/components/PromptCard';
+import { PromptListItem } from '@/components/PromptListItem';
 import { PromptDialog } from '@/components/PromptDialog';
 import { PromptEditor } from '@/components/PromptEditor';
 import { VersionHistory } from '@/components/VersionHistory';
 import { UploadDialog } from '@/components/UploadDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useWallet } from '@/hooks/useWallet';
 import { usePrompts } from '@/hooks/usePrompts';
 import { useInitializeTheme } from '@/hooks/useTheme';
@@ -16,6 +24,7 @@ import type { Prompt, PromptVersion } from '@/types/prompt';
 import { searchPrompts } from '@/lib/search';
 import { evaluateExpression } from '@/lib/boolean';
 import type { FileImportResult } from '@/lib/import';
+import { getViewMode, saveViewMode } from '@/lib/storage';
 
 function App() {
   useInitializeTheme();
@@ -40,13 +49,20 @@ function App() {
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'cards'>(() => getViewMode());
+
+  const toggleViewMode = () => {
+    const newMode = viewMode === 'list' ? 'cards' : 'list';
+    setViewMode(newMode);
+    saveViewMode(newMode);
+  };
 
   // Load prompts when wallet connects
   useEffect(() => {
     if (connected) {
       loadPrompts();
     }
-  }, [connected]);
+  }, [connected, loadPrompts]);
 
   // Filter prompts based on search and tags
   const filteredPrompts = prompts.filter(prompt => {
@@ -197,25 +213,41 @@ function App() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
           <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
             <Folder className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span>Pocket Prompt</span>
+            <span className="hidden sm:inline">Pocket Prompt</span>
+            <span className="sm:hidden">PP</span>
           </h1>
           <div className="flex items-center gap-2">
-            <Button onClick={handleCreateNew} size="sm" className="whitespace-nowrap">
-              <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">New Prompt</span>
-              <span className="sm:hidden">New</span>
-            </Button>
-            <Button onClick={() => setUploadDialogOpen(true)} size="sm" variant="outline" className="whitespace-nowrap">
-              <Upload className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Upload</span>
-              <span className="sm:hidden">
-                <Upload className="h-4 w-4" />
-              </span>
-            </Button>
-            <div className="h-6 w-px bg-border" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setUploadDialogOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Files
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={toggleViewMode}>
+                  {viewMode === 'list' ? (
+                    <>
+                      <LayoutGrid className="h-4 w-4 mr-2" />
+                      Cards View
+                    </>
+                  ) : (
+                    <>
+                      <List className="h-4 w-4 mr-2" />
+                      List View
+                    </>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <WalletButton />
             <ThemeToggle />
           </div>
@@ -249,15 +281,25 @@ function App() {
           <div className="text-center py-12 space-y-4">
             <p className="text-muted-foreground text-lg">
               {prompts.length === 0
-                ? "No prompts yet. Time to create something awesome!"
+                ? "No prompts yet. Click the + button to create your first prompt!"
                 : 'No prompts match your search. Try different filters?'}
             </p>
-            {prompts.length === 0 && (
-              <Button onClick={handleCreateNew} className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Prompt
-              </Button>
-            )}
+          </div>
+        ) : viewMode === 'list' ? (
+          <div className="border border-border rounded-lg overflow-hidden bg-card">
+            {filteredPrompts.map((prompt, index) => (
+              <div key={prompt.id}>
+                <PromptListItem
+                  prompt={prompt}
+                  onView={() => handleView(prompt)}
+                  onEdit={() => handleEdit(prompt)}
+                  onArchive={() => archivePrompt(prompt.id)}
+                  onRestore={() => restorePrompt(prompt.id)}
+                  onCopy={() => handleCopy(prompt)}
+                />
+                {index < filteredPrompts.length - 1 && <div className="border-b border-border" />}
+              </div>
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -310,6 +352,17 @@ function App() {
         onImport={handleBatchImport}
         existingPromptIds={prompts.map(p => p.id)}
       />
+
+      {/* Floating Action Button */}
+      <Button
+        onClick={handleCreateNew}
+        size="lg"
+        className="fixed bottom-6 right-6 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95 z-50 h-14 sm:h-12 sm:w-auto sm:rounded-full sm:px-6"
+        title="Create prompt"
+      >
+        <Plus className="h-6 w-6 sm:mr-2" />
+        <span className="hidden sm:inline font-semibold">Prompt</span>
+      </Button>
     </div>
   );
 }
