@@ -90,7 +90,6 @@ export function BooleanSearchDialog({
       description: saveDescription.trim() || undefined,
       expression: parsedExpression,
       textQuery: textQuery || undefined,
-      createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Archive as ArchiveIcon, Folder, Upload, LayoutGrid, List, MoreVertical } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Plus, Archive as ArchiveIcon, Folder, Upload, Copy, Bell } from 'lucide-react';
 import { WalletButton } from '@/components/WalletButton';
 import { SearchBar } from '@/components/SearchBar';
 import { PromptCard } from '@/components/PromptCard';
@@ -8,31 +8,32 @@ import { PromptDialog } from '@/components/PromptDialog';
 import { PromptEditor } from '@/components/PromptEditor';
 import { VersionHistory } from '@/components/VersionHistory';
 import { UploadDialog } from '@/components/UploadDialog';
+import { NotificationsDialog } from '@/components/NotificationsDialog';
 import { PasswordPrompt } from '@/components/PasswordPrompt';
 import { PasswordUnlock } from '@/components/PasswordUnlock';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWallet } from '@/hooks/useWallet';
 import { usePrompts } from '@/hooks/usePrompts';
 import { usePassword } from '@/contexts/PasswordContext';
 import { useInitializeTheme } from '@/hooks/useTheme';
+import { useCollections } from '@/hooks/useCollections';
+import { useNotifications } from '@/hooks/useNotifications';
+import { getArweaveWallet } from '@/lib/arweave';
+import { isTransactionConfirmed } from '@/lib/collections-storage';
+import { Badge } from '@/components/ui/badge';
 import type { Prompt, PromptVersion } from '@/types/prompt';
 import { searchPrompts } from '@/lib/search';
 import { evaluateExpression } from '@/lib/boolean';
 import type { FileImportResult } from '@/lib/import';
 import { getViewMode, saveViewMode, hasEncryptedPromptsInCache } from '@/lib/storage';
 import type { EncryptedData } from '@/lib/encryption';
+import { findDuplicates } from '@/lib/duplicates';
 
 function App() {
   useInitializeTheme();
-  const { connected } = useWallet();
+  const { address, connected } = useWallet();
   const { password, setPassword, hasPassword } = usePassword();
   const {
     prompts,
@@ -47,17 +48,52 @@ function App() {
     restorePrompt,
   } = usePrompts();
 
+  // Collections management with Arweave sync
+  const arweaveWallet = getArweaveWallet();
+
+  // Notifications for Arweave uploads
+  const notifications = useNotifications(address, isTransactionConfirmed);
+
+  // Notification callbacks for collections
+  const handleCollectionUploadStart = useCallback((txId: string, count: number) => {
+    notifications.addNotification(
+      'collection',
+      txId,
+      'Collections uploaded',
+      `Syncing ${count} collection${count === 1 ? '' : 's'} to Arweave`
+    );
+  }, [notifications]);
+
+  const handleCollectionUploadComplete = useCallback((txId: string) => {
+    notifications.markAsConfirmed(txId);
+  }, [notifications]);
+
+  const handleCollectionUploadError = useCallback((error: string) => {
+    console.error('[App] Collections upload error:', error);
+  }, []);
+
+  const collections = useCollections(
+    address,
+    arweaveWallet,
+    handleCollectionUploadStart,
+    handleCollectionUploadComplete,
+    handleCollectionUploadError
+  );
+
   const [showArchived, setShowArchived] = useState(false);
+  const [showDuplicates, setShowDuplicates] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [notificationsDialogOpen, setNotificationsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>(() => getViewMode());
   const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
   const [passwordUnlockOpen, setPasswordUnlockOpen] = useState(false);
   const [sampleEncryptedData, setSampleEncryptedData] = useState<EncryptedData | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const toggleViewMode = () => {
     const newMode = viewMode === 'list' ? 'cards' : 'list';
@@ -137,6 +173,15 @@ function App() {
     if (showArchived && !prompt.isArchived) return false;
     if (!showArchived && prompt.isArchived) return false;
 
+    // Duplicate filter
+    if (showDuplicates) {
+      const duplicateGroups = findDuplicates(prompts);
+      const duplicateIds = new Set(
+        duplicateGroups.flatMap(group => group.prompts.map(p => p.id))
+      );
+      if (!duplicateIds.has(prompt.id)) return false;
+    }
+
     // Boolean expression filter (takes precedence over simple tag filter)
     if (booleanExpression) {
       if (!evaluateExpression(booleanExpression, prompt.tags)) return false;
@@ -156,6 +201,127 @@ function App() {
 
     return true;
   });
+
+  // Reset selected index when filtered prompts change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [filteredPrompts.length, searchQuery, selectedTags, booleanExpression, showArchived]);
+
+  // Scroll selected item into view
+  useEffect(() => {
+    const selectedElement = document.querySelector(`[data-prompt-index="${selectedIndex}"]`);
+    if (selectedElement) {
+      selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedIndex]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      // Handle Escape to close dialogs
+      if (event.key === 'Escape') {
+        if (viewDialogOpen) {
+          event.preventDefault();
+          setViewDialogOpen(false);
+          return;
+        }
+        if (editorOpen) {
+          event.preventDefault();
+          setEditorOpen(false);
+          return;
+        }
+        if (versionHistoryOpen) {
+          event.preventDefault();
+          setVersionHistoryOpen(false);
+          return;
+        }
+        if (uploadDialogOpen) {
+          event.preventDefault();
+          setUploadDialogOpen(false);
+          return;
+        }
+        if (passwordPromptOpen) {
+          event.preventDefault();
+          setPasswordPromptOpen(false);
+          return;
+        }
+        if (passwordUnlockOpen) {
+          event.preventDefault();
+          setPasswordUnlockOpen(false);
+          return;
+        }
+
+        // Check if we're in the search input specifically
+        const isSearchInput = target.getAttribute('type') === 'text' && target.getAttribute('placeholder')?.includes('Search');
+        if (isSearchInput) {
+          event.preventDefault();
+          (target as HTMLInputElement).blur();
+          return;
+        }
+      }
+
+      const numResults = filteredPrompts.length;
+      if (numResults === 0) return;
+
+      // Check if we're in the search input specifically
+      const isSearchInput = target.getAttribute('type') === 'text' && target.getAttribute('placeholder')?.includes('Search');
+
+      // Block certain dialogs from all navigation
+      const blockingDialogOpen = editorOpen || versionHistoryOpen || uploadDialogOpen || passwordPromptOpen || passwordUnlockOpen || viewDialogOpen;
+
+      switch (event.key) {
+        case 'ArrowDown':
+          // Don't allow in any dialogs or when typing (except search)
+          if (blockingDialogOpen) return;
+          if (!isSearchInput && isTyping) return;
+          event.preventDefault();
+          setSelectedIndex((prev) => (prev + 1) % numResults);
+          break;
+        case 'ArrowUp':
+          // Don't allow in any dialogs or when typing (except search)
+          if (blockingDialogOpen) return;
+          if (!isSearchInput && isTyping) return;
+          event.preventDefault();
+          setSelectedIndex((prev) => (prev - 1 + numResults) % numResults);
+          break;
+        case 'Enter':
+          // Don't allow in any dialogs
+          if (blockingDialogOpen) return;
+          if (!isSearchInput && isTyping) return;
+          event.preventDefault();
+          handleView(filteredPrompts[selectedIndex]);
+          break;
+        case 'e':
+          // Don't allow when dialogs are open or typing - PromptDialog handles its own shortcuts
+          if (blockingDialogOpen || isTyping) return;
+          event.preventDefault();
+          handleEdit(filteredPrompts[selectedIndex]);
+          break;
+        case 'c':
+          // Don't allow when dialogs are open or typing - PromptDialog handles its own shortcuts
+          if (blockingDialogOpen || isTyping) return;
+          event.preventDefault();
+          handleCopy(filteredPrompts[selectedIndex]);
+          break;
+        case 'a':
+          // Don't allow when dialogs are open or typing - PromptDialog handles its own shortcuts
+          if (blockingDialogOpen || isTyping) return;
+          event.preventDefault();
+          if (filteredPrompts[selectedIndex].isArchived) {
+            restorePrompt(filteredPrompts[selectedIndex].id, password || undefined);
+          } else {
+            archivePrompt(filteredPrompts[selectedIndex].id, password || undefined);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [filteredPrompts, selectedIndex, selectedPrompt, viewDialogOpen, editorOpen, versionHistoryOpen, uploadDialogOpen, passwordPromptOpen, passwordUnlockOpen, password, archivePrompt, restorePrompt]);
 
   const handleCreateNew = () => {
     setEditingPrompt(null);
@@ -287,33 +453,49 @@ function App() {
             <span className="sm:hidden">PP</span>
           </h1>
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setUploadDialogOpen(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Files
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={toggleViewMode}>
-                  {viewMode === 'list' ? (
-                    <>
-                      <LayoutGrid className="h-4 w-4 mr-2" />
-                      Cards View
-                    </>
-                  ) : (
-                    <>
-                      <List className="h-4 w-4 mr-2" />
-                      List View
-                    </>
-                  )}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setUploadDialogOpen(true)}
+                  >
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Upload Files</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      setNotificationsDialogOpen(true);
+                      notifications.markAllAsRead();
+                    }}
+                    className="relative"
+                  >
+                    <Bell className="h-4 w-4" />
+                    {notifications.unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
+                      >
+                        {notifications.unreadCount > 9 ? '9+' : notifications.unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Arweave Notifications</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             <WalletButton />
             <ThemeToggle />
@@ -324,11 +506,25 @@ function App() {
       {/* Main Content */}
       <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
         <section className="mx-auto flex max-w-6xl flex-col gap-4">
-          <SearchBar showArchived={showArchived} setShowArchived={setShowArchived} />
+          <SearchBar
+            showArchived={showArchived}
+            setShowArchived={setShowArchived}
+            viewMode={viewMode}
+            onViewModeToggle={toggleViewMode}
+            showDuplicates={showDuplicates}
+            setShowDuplicates={setShowDuplicates}
+            collections={collections}
+          />
           {showArchived && (
             <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/30 px-4 py-2.5 text-sm">
               <ArchiveIcon className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Viewing archived prompts</span>
+            </div>
+          )}
+          {showDuplicates && (
+            <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-amber-500/10 px-4 py-2.5 text-sm">
+              <Copy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <span className="font-medium text-amber-700 dark:text-amber-300">Showing potential duplicates only</span>
             </div>
           )}
         </section>
@@ -352,12 +548,22 @@ function App() {
                 : 'No prompts match your search. Try different filters?'}
             </p>
           </div>
-        ) : viewMode === 'list' ? (
+        ) : (
+          <>
+            <div className="mb-4 text-sm text-muted-foreground">
+              Showing {filteredPrompts.length} {filteredPrompts.length === 1 ? 'prompt' : 'prompts'}
+              {(() => {
+                const totalActive = prompts.filter(p => !p.isArchived).length;
+                return filteredPrompts.length !== totalActive && !showArchived ? ` of ${totalActive} total` : '';
+              })()}
+            </div>
+            {viewMode === 'list' ? (
           <div className="border border-border rounded-lg overflow-hidden bg-card">
             {filteredPrompts.map((prompt, index) => (
-              <div key={prompt.id}>
+              <div key={`${prompt.id}-${index}`} data-prompt-index={index}>
                 <PromptListItem
                   prompt={prompt}
+                  isSelected={index === selectedIndex}
                   onView={() => handleView(prompt)}
                   onEdit={() => handleEdit(prompt)}
                   onArchive={() => archivePrompt(prompt.id, password || undefined)}
@@ -370,18 +576,22 @@ function App() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredPrompts.map(prompt => (
-              <PromptCard
-                key={prompt.id}
-                prompt={prompt}
-                onView={() => handleView(prompt)}
-                onEdit={() => handleEdit(prompt)}
-                onArchive={() => archivePrompt(prompt.id, password || undefined)}
-                onRestore={() => restorePrompt(prompt.id, password || undefined)}
-                onCopy={() => handleCopy(prompt)}
-              />
+            {filteredPrompts.map((prompt, index) => (
+              <div key={`${prompt.id}-${index}`} data-prompt-index={index}>
+                <PromptCard
+                  prompt={prompt}
+                  isSelected={index === selectedIndex}
+                  onView={() => handleView(prompt)}
+                  onEdit={() => handleEdit(prompt)}
+                  onArchive={() => archivePrompt(prompt.id, password || undefined)}
+                  onRestore={() => restorePrompt(prompt.id, password || undefined)}
+                  onCopy={() => handleCopy(prompt)}
+                />
+              </div>
             ))}
           </div>
+        )}
+          </>
         )}
         </section>
       </main>
@@ -418,6 +628,15 @@ function App() {
         onOpenChange={setUploadDialogOpen}
         onImport={handleBatchImport}
         existingPromptIds={prompts.map(p => p.id)}
+        existingPrompts={prompts}
+      />
+
+      <NotificationsDialog
+        open={notificationsDialogOpen}
+        onOpenChange={setNotificationsDialogOpen}
+        notifications={notifications.notifications}
+        onClear={notifications.clearNotification}
+        onClearAll={notifications.clearAll}
       />
 
       <PasswordPrompt
@@ -437,7 +656,7 @@ function App() {
       <Button
         onClick={handleCreateNew}
         size="lg"
-        className="fixed bottom-6 right-6 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95 z-50 h-14 sm:h-12 sm:w-auto sm:rounded-full sm:px-6"
+        className="fixed bottom-6 right-6 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95 z-50 h-14 w-14 sm:h-12 sm:w-auto sm:px-6"
         title="Create prompt"
       >
         <Plus className="h-6 w-6 sm:mr-2" />

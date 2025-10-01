@@ -14,23 +14,55 @@
       },
       {
         "name": "App-Version",
-        "value": "3.3.0",
+        "value": "3.4.0",
         "description": "Application version (semantic versioning: MAJOR.MINOR.PATCH)"
       },
       {
         "name": "Type",
         "value": "prompt",
-        "description": "Data type identifier"
+        "description": "Data type identifier (prompt or collections)"
       },
       {
         "name": "Protocol",
-        "value": "Pocket-Prompt-v3.3",
-        "description": "Protocol identifier for discoverability (v3.3 = wallet + password hybrid encryption)"
+        "value": "Pocket-Prompt-v3.4",
+        "description": "Protocol identifier for discoverability (v3.4 = collections on Arweave + notifications)"
       },
       {
         "name": "Data-Protocol",
         "value": "Prompt",
         "description": "Data protocol specification"
+      }
+    ],
+    "collectionsTags": [
+      {
+        "name": "Content-Type",
+        "value": "application/json",
+        "description": "MIME type of the uploaded data"
+      },
+      {
+        "name": "App-Name",
+        "value": "Pocket Prompt",
+        "description": "Application name"
+      },
+      {
+        "name": "App-Version",
+        "value": "3.4.0",
+        "description": "Application version"
+      },
+      {
+        "name": "Type",
+        "value": "collections",
+        "description": "Collections data type"
+      },
+      {
+        "name": "Protocol",
+        "value": "Pocket-Prompt-v3.4",
+        "description": "Protocol identifier"
+      },
+      {
+        "name": "Data-Protocol",
+        "value": "Collections",
+        "description": "Collections data protocol"
       }
     ],
     "dynamicTags": [
@@ -98,8 +130,8 @@
       },
       {
         "name": "Protocol",
-        "values": ["Pocket-Prompt-v3.3"],
-        "description": "Filter by protocol version (v3.3 = wallet + password hybrid encryption)"
+        "values": ["Pocket-Prompt-v3.4"],
+        "description": "Filter by protocol version (v3.4 = collections on Arweave + notifications)"
       }
     ],
     "owner": {

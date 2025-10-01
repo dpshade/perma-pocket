@@ -691,11 +691,19 @@ export async function disconnectWallet(): Promise<void> {
 }
 
 /**
+ * Get ArConnect wallet object
+ */
+export function getArweaveWallet(): any | null {
+  if (typeof window === 'undefined') return null;
+  return (window as any).arweaveWallet || null;
+}
+
+/**
  * Get active wallet address
  */
 export async function getWalletAddress(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
-  const arweaveWallet = (window as any).arweaveWallet;
+  const arweaveWallet = getArweaveWallet();
 
   if (!arweaveWallet) return null;
 

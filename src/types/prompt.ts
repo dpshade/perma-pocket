@@ -54,7 +54,6 @@ export interface SavedSearch {
   description?: string;
   expression: BooleanExpression;
   textQuery?: string; // Optional text search to combine with boolean
-  createdAt: number;
   updatedAt: number;
 }
 

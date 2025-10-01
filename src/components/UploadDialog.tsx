@@ -1,25 +1,29 @@
 import { useState, useRef, useEffect } from 'react';
 import type { DragEvent } from 'react';
-import { Upload, FolderUp, FileText, CheckCircle, AlertCircle, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Upload, FolderUp, FileText, CheckCircle, AlertCircle, ArrowLeft, AlertTriangle, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { importMarkdownDirectory, type FileImportResult } from '@/lib/import';
 import { estimatePromptUploadSize, formatBytes, getSizeWarningLevel } from '@/lib/fileSize';
+import { findDuplicates } from '@/lib/duplicates';
+import type { Prompt } from '@/types/prompt';
 
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (selectedPrompts: FileImportResult[]) => Promise<void>;
   existingPromptIds: string[];
+  existingPrompts: Prompt[];
 }
 
-export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }: UploadDialogProps) {
+export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, existingPrompts }: UploadDialogProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [preview, setPreview] = useState<FileImportResult[] | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [fileSizes, setFileSizes] = useState<Map<string, number>>(new Map());
+  const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,31 +31,64 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
     setPreview(null);
     setSelectedIds(new Set());
     setFileSizes(new Map());
+    setDuplicateIds(new Set());
     setIsProcessing(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (folderInputRef.current) folderInputRef.current.value = '';
   };
 
-  // Calculate file sizes when preview changes
+  // Calculate file sizes and detect duplicates when preview changes
   useEffect(() => {
     if (!preview) return;
 
-    const calculateSizes = async () => {
+    const calculateSizesAndDuplicates = async () => {
       const sizeMap = new Map<string, number>();
 
+      // Extract prompts from preview
+      const importedPrompts: Prompt[] = [];
       for (const result of preview) {
         if (result.success && result.prompt) {
           // Estimate size (fast, doesn't require wallet connection)
           const estimatedSize = estimatePromptUploadSize(result.prompt);
           sizeMap.set(result.prompt.id, estimatedSize);
+          importedPrompts.push(result.prompt);
         }
       }
 
       setFileSizes(sizeMap);
+
+      // Check for duplicates against existing prompts
+      if (existingPrompts.length > 0 && importedPrompts.length > 0) {
+        // Combine existing and imported prompts to find duplicates
+        const allPrompts = [...existingPrompts, ...importedPrompts];
+        const duplicateGroups = findDuplicates(allPrompts);
+
+        // Find which imported prompts are in duplicate groups
+        const duplicateSet = new Set<string>();
+        duplicateGroups.forEach(group => {
+          // Check if this group contains any imported prompts
+          const hasImported = group.prompts.some(p =>
+            importedPrompts.some(ip => ip.id === p.id)
+          );
+
+          if (hasImported) {
+            // Mark all prompts in this group that are in the import
+            group.prompts.forEach(p => {
+              if (importedPrompts.some(ip => ip.id === p.id)) {
+                duplicateSet.add(p.id);
+              }
+            });
+          }
+        });
+
+        setDuplicateIds(duplicateSet);
+      } else {
+        setDuplicateIds(new Set());
+      }
     };
 
-    calculateSizes();
-  }, [preview]);
+    calculateSizesAndDuplicates();
+  }, [preview, existingPrompts]);
 
   const handleDragEnter = (e: DragEvent) => {
     e.preventDefault();
@@ -276,6 +313,7 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
             {preview.map((result, index) => {
               const isSelected = result.prompt && selectedIds.has(result.prompt.id);
               const willUpdate = result.prompt && existingPromptIds.includes(result.prompt.id);
+              const isPossibleDuplicate = result.prompt && duplicateIds.has(result.prompt.id);
               const fileSize = result.prompt ? fileSizes.get(result.prompt.id) : undefined;
               const sizeWarning = fileSize ? getSizeWarningLevel(fileSize) : 'ok';
 
@@ -327,6 +365,15 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds }
                             {willUpdate && (
                               <Badge variant="secondary" className="text-xs">
                                 Will update existing
+                              </Badge>
+                            )}
+                            {isPossibleDuplicate && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Possible duplicate
                               </Badge>
                             )}
                             {fileSize !== undefined && (

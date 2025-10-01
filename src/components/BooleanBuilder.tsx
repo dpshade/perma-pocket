@@ -11,8 +11,8 @@ import {
   parseBooleanExpression,
   validateExpression,
 } from '@/lib/boolean';
-import { saveSavedSearch } from '@/lib/storage';
 import type { BooleanExpression, Prompt, SavedSearch } from '@/types/prompt';
+import type { UseCollectionsReturn } from '@/hooks/useCollections';
 import { Index } from 'flexsearch';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,7 @@ interface BooleanBuilderProps {
   onApply: (expression: BooleanExpression) => void;
   onClose: () => void;
   isOpen: boolean;
+  collections: UseCollectionsReturn;
 }
 
 export function BooleanBuilder({
@@ -36,6 +37,7 @@ export function BooleanBuilder({
   onApply,
   onClose,
   isOpen,
+  collections,
 }: BooleanBuilderProps) {
   const [cursorPosition, setCursorPosition] = useState(0);
   const [parsedExpression, setParsedExpression] = useState<BooleanExpression | null>(null);
@@ -184,10 +186,50 @@ export function BooleanBuilder({
 
   const insertTag = (tag: string) => {
     const input = inputRef.current;
-    const start = input?.selectionStart ?? 0;
-    const before = expressionText.substring(0, start);
-    const needsSpace = before.length > 0 && !before.endsWith(' ') && !before.endsWith('(');
-    insertText(`${needsSpace ? ' ' : ''}${tag}`, false);
+    if (!input) return;
+
+    const cursorPos = input.selectionStart ?? 0;
+    const currentWord = getCurrentWord(expressionText, cursorPos);
+
+    // Check if the tag starts with the current word (smart replacement)
+    if (currentWord && tag.toLowerCase().startsWith(currentWord.toLowerCase())) {
+      // Find the start position of the current word
+      const beforeCursor = expressionText.substring(0, cursorPos);
+      const wordBoundaries = /[\s()]/;
+
+      let wordStart = beforeCursor.length;
+      while (wordStart > 0 && !wordBoundaries.test(beforeCursor[wordStart - 1])) {
+        wordStart--;
+      }
+
+      // Find the end position of the current word
+      const afterCursor = expressionText.substring(cursorPos);
+      let wordEnd = 0;
+      while (wordEnd < afterCursor.length && !wordBoundaries.test(afterCursor[wordEnd])) {
+        wordEnd++;
+      }
+
+      // Replace the current word with the tag
+      const before = expressionText.substring(0, wordStart);
+      const after = expressionText.substring(cursorPos + wordEnd);
+      const needsSpaceBefore = before.length > 0 && !before.endsWith(' ') && !before.endsWith('(');
+
+      const newText = `${before}${needsSpaceBefore ? ' ' : ''}${tag}${after}`;
+      onExpressionChange(newText);
+
+      const newPos = wordStart + (needsSpaceBefore ? 1 : 0) + tag.length;
+      requestAnimationFrame(() => {
+        input.focus();
+        input.setSelectionRange(newPos, newPos);
+        setCursorPosition(newPos);
+      });
+    } else {
+      // Original insert behavior
+      const start = cursorPos;
+      const before = expressionText.substring(0, start);
+      const needsSpace = before.length > 0 && !before.endsWith(' ') && !before.endsWith('(');
+      insertText(`${needsSpace ? ' ' : ''}${tag}`, false);
+    }
   };
 
   const insertParens = () => {
@@ -225,11 +267,10 @@ export function BooleanBuilder({
       description: saveDescription.trim() || undefined,
       expression: parsedExpression,
       textQuery: searchQuery || undefined,
-      createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 
-    saveSavedSearch(search);
+    collections.addCollection(search);
     setSaveDialogOpen(false);
     setSaveName('');
     setSaveDescription('');
@@ -240,22 +281,25 @@ export function BooleanBuilder({
 
   return (
     <div className="rounded-lg border border-border/70 bg-background/95 shadow-sm">
-      <div className="flex items-center gap-3 border-b border-border/60 px-3 py-2.5">
+      <div
+        className="flex items-center gap-3 border-b border-border/60 px-3 py-2.5 bg-primary rounded-t-lg text-primary-foreground cursor-pointer hover:bg-primary/90 transition-colors"
+        onClick={onClose}
+      >
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Filter className="h-4 w-4 text-primary" />
+          <Filter className="h-4 w-4" />
           <span>Build a filter</span>
           {parsedExpression && !error && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs font-semibold">
               {matchCount} match{matchCount === 1 ? '' : 'es'}
             </span>
           )}
-          {error && <span className="text-xs font-normal text-red-500">{error}</span>}
+          {error && <span className="text-xs font-normal text-red-400">{error}</span>}
         </div>
         <div className="ml-auto flex items-center gap-3">
           {parsedExpression && !error && (
-            <span className="hidden text-xs text-muted-foreground sm:inline-flex items-center gap-1">
+            <span className="hidden text-xs opacity-70 sm:inline-flex items-center gap-1">
               Press
-              <kbd className="rounded border px-1 text-[10px] font-medium uppercase">⏎</kbd>
+              <kbd className="rounded border border-primary-foreground/30 px-1 text-[10px] font-medium uppercase bg-primary-foreground/10">⏎</kbd>
               to apply
             </span>
           )}
@@ -263,8 +307,11 @@ export function BooleanBuilder({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={() => setSaveDialogOpen(true)}
+              className="h-8 w-8 opacity-70 hover:opacity-100 hover:bg-primary-foreground/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSaveDialogOpen(true);
+              }}
               title="Save to collection"
             >
               <Save className="h-4 w-4" />
@@ -273,8 +320,11 @@ export function BooleanBuilder({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={onClose}
+            className="h-8 w-8 opacity-70 hover:opacity-100 hover:bg-primary-foreground/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             title="Collapse builder"
           >
             <ChevronUp className="h-4 w-4" />

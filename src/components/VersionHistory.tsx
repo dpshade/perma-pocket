@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Prompt, PromptVersion } from '@/types/prompt';
 import { useState } from 'react';
 import { fetchPrompt } from '@/lib/arweave';
@@ -19,17 +20,26 @@ export function VersionHistory({
   prompt,
   onRestoreVersion,
 }: VersionHistoryProps) {
-  const [selectedVersion, setSelectedVersion] = useState<Prompt | null>(null);
+  const [selectedVersionTxId, setSelectedVersionTxId] = useState<string | null>(null);
+  const [selectedVersionContent, setSelectedVersionContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!prompt) return null;
 
   const handleViewVersion = async (version: PromptVersion) => {
+    // Toggle off if clicking the same version
+    if (selectedVersionTxId === version.txId) {
+      setSelectedVersionTxId(null);
+      setSelectedVersionContent(null);
+      return;
+    }
+
     setLoading(true);
     try {
       const versionPrompt = await fetchPrompt(version.txId);
       if (versionPrompt) {
-        setSelectedVersion(versionPrompt);
+        setSelectedVersionTxId(version.txId);
+        setSelectedVersionContent(typeof versionPrompt.content === 'string' ? versionPrompt.content : 'Encrypted content');
       }
     } catch (error) {
       console.error('Failed to load version:', error);
@@ -85,46 +95,69 @@ export function VersionHistory({
                   </div>
 
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleViewVersion(version)}
-                      disabled={loading}
-                    >
-                      <Eye className="mr-1 h-3 w-3" />
-                      View
-                    </Button>
+                    <TooltipProvider delayDuration={200}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewVersion(version)}
+                            disabled={loading}
+                          >
+                            <Eye className="mr-1 h-3 w-3" />
+                            View
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>View version content</p>
+                        </TooltipContent>
+                      </Tooltip>
 
-                    <a
-                      href={`https://viewblock.io/arweave/tx/${version.txId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button size="sm" variant="outline">
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    </a>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <a
+                            href={`https://viewblock.io/arweave/tx/${version.txId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button size="sm" variant="outline">
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          </a>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>View on Arweave</p>
+                        </TooltipContent>
+                      </Tooltip>
 
-                    {!isLatest && (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => {
-                          onRestoreVersion(version);
-                          onOpenChange(false);
-                        }}
-                      >
-                        Restore
-                      </Button>
-                    )}
+                      {!isLatest && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => {
+                                onRestoreVersion(version);
+                                onOpenChange(false);
+                              }}
+                            >
+                              Restore
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Restore this version</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </TooltipProvider>
                   </div>
                 </div>
 
                 {/* Show version content if selected */}
-                {selectedVersion && selectedVersion.currentTxId === version.txId && (
+                {selectedVersionTxId === version.txId && selectedVersionContent && (
                   <div className="mt-3 rounded-md border bg-muted/50 p-3">
                     <pre className="whitespace-pre-wrap font-mono text-xs max-h-40 overflow-y-auto">
-                      {selectedVersion.content}
+                      {selectedVersionContent}
                     </pre>
                   </div>
                 )}

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Prompt } from '@/types/prompt';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { wasPromptEncrypted } from '@/lib/encryption';
 
 interface PromptDialogProps {
@@ -24,6 +24,46 @@ export function PromptDialog({
   onShowVersions,
 }: PromptDialogProps) {
   const [copied, setCopied] = useState(false);
+
+  // Keyboard shortcuts for the dialog
+  useEffect(() => {
+    if (!open || !prompt) return;
+
+    const handleCopy = () => {
+      navigator.clipboard.writeText(prompt.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      // Don't handle shortcuts when typing
+      if (isTyping) return;
+
+      switch (event.key) {
+        case 'e':
+          event.preventDefault();
+          onEdit();
+          break;
+        case 'c':
+          event.preventDefault();
+          handleCopy();
+          break;
+        case 'a':
+          if (!prompt.isArchived) {
+            event.preventDefault();
+            onArchive();
+            onOpenChange(false);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, prompt, onEdit, onArchive, onOpenChange]);
 
   if (!prompt) return null;
 
