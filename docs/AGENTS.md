@@ -38,7 +38,7 @@ bunx vitest run src/**/*.edge.test.ts  # Only edge case tests
 
 ### Core Data Flow
 1. User connects ArConnect wallet → queries Arweave via GraphQL for all prompts
-2. GraphQL discovers all transactions with `Protocol: Pocket-Prompt-v3.1` + owner address
+2. GraphQL discovers all transactions with `Protocol: Pocket-Prompt-v3.2` + owner address
 3. Full prompts fetched from Arweave and cached in localStorage under `pktpmt:prompts`
 4. Profile metadata stored in localStorage for backward compatibility
 5. On edit, new version uploaded to Arweave → version history preserved
@@ -81,8 +81,8 @@ Tags use case-insensitive AND logic (all selected tags must match). Archived pro
 ### Arweave Upload Tags
 All uploads include comprehensive tags for discoverability:
 - `App-Name: Pocket Prompt`
-- `App-Version: 3.1.0` (semantic versioning)
-- `Protocol: Pocket-Prompt-v3.1` (session-based encryption)
+- `App-Version: 3.2.0` (semantic versioning)
+- `Protocol: Pocket-Prompt-v3.2` (signMessage API with SHA-256)
 - `Type: prompt`
 - `Prompt-Id: {uuid}`
 - `Tag: {tag}` (one per user tag)
@@ -93,19 +93,21 @@ All uploads include comprehensive tags for discoverability:
 - **v1:** Per-transaction RSA encryption (**INCOMPATIBLE** - deprecated)
 - **v2:** Hybrid period - v2 tags but some used v1 encryption (**INCOMPATIBLE** - deprecated)
 - **v3.0:** Session-based encryption with incorrect key wrapping (**INCOMPATIBLE** - deprecated)
-- **v3.1:** Session-based encryption with proper AES-GCM key wrapping (**CURRENT**)
+- **v3.1:** Session-based encryption with signature() RSA-PSS (**INCOMPATIBLE** - deprecated)
+- **v3.2:** Session-based encryption with signMessage() SHA-256 (**CURRENT**)
 
-GraphQL queries only search for v3.1 prompts. Old v1/v2/v3.0 prompts are not backward compatible and will be ignored.
+GraphQL queries only search for v3.2 prompts. Old v1/v2/v3.0/v3.1 prompts are not backward compatible and will be ignored.
 
 The `App-Name` and `Protocol` tags are used in GraphQL queries to discover a user's library.
 
-**Encryption Architecture (v3.1):**
-- First operation per session: User signs once to derive master encryption key via PBKDF2
+**Encryption Architecture (v3.2):**
+- First operation per session: User signs message once using signMessage() API with SHA-256
+- Master encryption key derived from signature via PBKDF2 (100k iterations)
 - Content encrypted with random AES-256-GCM key
 - AES key encrypted with master key (proper key wrapping with IV)
 - All subsequent operations: Use cached master key (zero additional signatures)
 - Session key cleared on wallet disconnect
-- Provides strong encryption without signature spam
+- Provides strong wallet-based encryption without signature spam
 
 **Versioning Strategy:**
 - Uses **semantic versioning** (MAJOR.MINOR.PATCH)

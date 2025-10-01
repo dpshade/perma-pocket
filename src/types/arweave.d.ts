@@ -7,7 +7,7 @@ declare global {
   interface Window {
     arweaveWallet: {
       /**
-       * Sign a message using the wallet (replaces deprecated signature() method)
+       * Sign a message using the wallet
        * @param data Message data to sign
        * @param options Hash algorithm options
        * @returns Promise of the signature
@@ -18,6 +18,11 @@ declare global {
           hashAlgorithm?: 'SHA-256' | 'SHA-384' | 'SHA-512';
         }
       ): Promise<Uint8Array>;
+
+      /**
+       * Get the active wallet address
+       */
+      getActiveAddress(): Promise<string>;
     };
   }
 }

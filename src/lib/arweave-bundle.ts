@@ -125,8 +125,8 @@ export async function uploadPromptBundle(
     const tags = [
       { name: 'Content-Type', value: 'application/json' },
       { name: 'App-Name', value: 'Pocket Prompt' },
-      { name: 'App-Version', value: '3.1.0' },
-      { name: 'Protocol', value: 'Pocket-Prompt-v3.1' },
+      { name: 'App-Version', value: '3.2.0' },
+      { name: 'Protocol', value: 'Pocket-Prompt-v3.2' },
       { name: 'Type', value: 'prompt-bundle' }, // Different type for bundles
       { name: 'Bundle-Id', value: bundleId },
       { name: 'Prompt-Count', value: preparedPrompts.length.toString() },
@@ -271,7 +271,7 @@ export async function queryUserBundles(
       transactions(
         owners: [$owner]
         tags: [
-          { name: "Protocol", values: ["Pocket-Prompt-v3.1"] }
+          { name: "Protocol", values: ["Pocket-Prompt-v3.2"] }
           { name: "Type", values: ["prompt-bundle"] }
         ]
         sort: HEIGHT_DESC
