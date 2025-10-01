@@ -13,11 +13,11 @@ interface PromptsState {
   booleanExpression: BooleanExpression | null;
   activeSavedSearch: SavedSearch | null;
 
-  loadPrompts: () => Promise<void>;
-  addPrompt: (prompt: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
-  updatePrompt: (id: string, updates: Partial<Prompt>) => Promise<boolean>;
-  archivePrompt: (id: string) => Promise<void>;
-  restorePrompt: (id: string) => Promise<void>;
+  loadPrompts: (password?: string) => Promise<void>;
+  addPrompt: (prompt: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>, password?: string) => Promise<boolean>;
+  updatePrompt: (id: string, updates: Partial<Prompt>, password?: string) => Promise<boolean>;
+  archivePrompt: (id: string, password?: string) => Promise<void>;
+  restorePrompt: (id: string, password?: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   toggleTag: (tag: string) => void;
   clearFilters: () => void;
@@ -35,7 +35,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
   booleanExpression: null,
   activeSavedSearch: null,
 
-  loadPrompts: async () => {
+  loadPrompts: async (password?: string) => {
     set({ loading: true, error: null });
     try {
       // Get wallet address for GraphQL query
@@ -80,10 +80,10 @@ export const usePrompts = create<PromptsState>((set, get) => ({
 
       console.log(`Found ${cachedPrompts.length} in cache, fetching ${toFetch.length} from Arweave`);
 
-      // Fetch missing prompts from Arweave in parallel
+      // Fetch missing prompts from Arweave in parallel (with password for decryption)
       if (toFetch.length > 0) {
         const fetched = await Promise.all(
-          toFetch.map(txId => fetchPrompt(txId))
+          toFetch.map(txId => fetchPrompt(txId, password))
         );
 
         const successful = fetched.filter(p => p !== null);
@@ -122,7 +122,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
     }
   },
 
-  addPrompt: async (promptData) => {
+  addPrompt: async (promptData, password?: string) => {
     try {
       const jwk = await getWalletJWK();
 
@@ -137,8 +137,8 @@ export const usePrompts = create<PromptsState>((set, get) => ({
         isSynced: false,
       };
 
-      // Upload to Arweave
-      const result = await uploadPrompt(prompt, jwk);
+      // Upload to Arweave (with password for encryption if needed)
+      const result = await uploadPrompt(prompt, jwk, password);
       if (!result.success) {
         throw new Error(result.error || 'Upload failed');
       }
@@ -176,7 +176,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
     }
   },
 
-  updatePrompt: async (id, updates) => {
+  updatePrompt: async (id, updates, password?: string) => {
     try {
       const state = get();
       const existingPrompt = state.prompts.find(p => p.id === id);
@@ -193,8 +193,8 @@ export const usePrompts = create<PromptsState>((set, get) => ({
         updatedAt: Date.now(),
       };
 
-      // Upload new version to Arweave
-      const result = await uploadPrompt(updatedPrompt, jwk);
+      // Upload new version to Arweave (with password for encryption if needed)
+      const result = await uploadPrompt(updatedPrompt, jwk, password);
       if (!result.success) {
         throw new Error(result.error || 'Upload failed');
       }
@@ -238,7 +238,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
     }
   },
 
-  archivePrompt: async (id) => {
+  archivePrompt: async (id, password?: string) => {
     const prompt = get().prompts.find(p => p.id === id);
     if (!prompt) return;
 
@@ -254,7 +254,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
     // Upload to Arweave in background with updated archive tag
     try {
       const jwk = await getWalletJWK();
-      const result = await updatePromptArchiveStatus(prompt, true, jwk);
+      const result = await updatePromptArchiveStatus(prompt, true, jwk, password);
 
       if (result.success) {
         // Update with new txId and version entry
@@ -300,7 +300,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
     }
   },
 
-  restorePrompt: async (id) => {
+  restorePrompt: async (id, password?: string) => {
     const prompt = get().prompts.find(p => p.id === id);
     if (!prompt) return;
 
@@ -318,7 +318,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
     // Upload to Arweave in background with updated archive tag
     try {
       const jwk = await getWalletJWK();
-      const result = await updatePromptArchiveStatus(prompt, false, jwk);
+      const result = await updatePromptArchiveStatus(prompt, false, jwk, password);
 
       if (result.success) {
         // Update with new txId and version entry

@@ -6,6 +6,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { encryptContent, decryptContent, clearEncryptionCache } from './encryption';
 
+const TEST_PASSWORD = 'test-password-123';
+
 // Mock ArConnect wallet
 const mockWallet = {
   signMessage: async (data: Uint8Array) => {
@@ -33,21 +35,21 @@ describe('Encryption Validation - Triple Check', () => {
   it('VALIDATION 1: Simple string round-trip', async () => {
     const original = 'Hello, World!';
 
-    const encrypted = await encryptContent(original);
+    const encrypted = await encryptContent(original, TEST_PASSWORD);
     expect(encrypted.isEncrypted).toBe(true);
     expect(encrypted.encryptedContent).toBeDefined();
     expect(encrypted.encryptedKey).toBeDefined();
     expect(encrypted.iv).toBeDefined();
 
-    const decrypted = await decryptContent(encrypted);
+    const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
     expect(decrypted).toBe(original);
   });
 
   it('VALIDATION 2: Large content round-trip (10KB)', async () => {
     const original = 'x'.repeat(10000);
 
-    const encrypted = await encryptContent(original);
-    const decrypted = await decryptContent(encrypted);
+    const encrypted = await encryptContent(original, TEST_PASSWORD);
+    const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
 
     expect(decrypted).toBe(original);
     expect(decrypted.length).toBe(10000);
@@ -56,8 +58,8 @@ describe('Encryption Validation - Triple Check', () => {
   it('VALIDATION 3: Unicode and special characters', async () => {
     const original = '日本語 🎉 émojis & spëcial chârs: \n\t"quotes"';
 
-    const encrypted = await encryptContent(original);
-    const decrypted = await decryptContent(encrypted);
+    const encrypted = await encryptContent(original, TEST_PASSWORD);
+    const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
 
     expect(decrypted).toBe(original);
   });
@@ -70,8 +72,8 @@ describe('Encryption Validation - Triple Check', () => {
       tags: ['test', 'validation'],
     }, null, 2);
 
-    const encrypted = await encryptContent(original);
-    const decrypted = await decryptContent(encrypted);
+    const encrypted = await encryptContent(original, TEST_PASSWORD);
+    const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
 
     expect(decrypted).toBe(original);
 
@@ -92,7 +94,7 @@ describe('Encryption Validation - Triple Check', () => {
 
     // Encrypt all
     const encrypted = await Promise.all(
-      contents.map(content => encryptContent(content))
+      contents.map(content => encryptContent(content, TEST_PASSWORD))
     );
 
     // Verify all encrypted data is unique
@@ -102,7 +104,7 @@ describe('Encryption Validation - Triple Check', () => {
 
     // Decrypt all
     const decrypted = await Promise.all(
-      encrypted.map(enc => decryptContent(enc))
+      encrypted.map(enc => decryptContent(enc, TEST_PASSWORD))
     );
 
     // Verify all match originals
@@ -113,7 +115,7 @@ describe('Encryption Validation - Triple Check', () => {
 
   it('VALIDATION 6: Encrypted output format validation', async () => {
     const original = 'Test content';
-    const encrypted = await encryptContent(original);
+    const encrypted = await encryptContent(original, TEST_PASSWORD);
 
     // Validate structure
     expect(encrypted).toHaveProperty('encryptedContent');
@@ -148,35 +150,35 @@ describe('Encryption Validation - Triple Check', () => {
     (window as any).arweaveWallet = trackingWallet;
 
     // First encryption should trigger signature
-    const encrypted1 = await encryptContent('Content 1');
+    const encrypted1 = await encryptContent('Content 1', TEST_PASSWORD);
     expect(signatureCount).toBe(1);
 
     // Second encryption should use cached key
-    const encrypted2 = await encryptContent('Content 2');
+    const encrypted2 = await encryptContent('Content 2', TEST_PASSWORD);
     expect(signatureCount).toBe(1); // Still 1, not 2
 
     // Decryption should also use cached key
-    await decryptContent(encrypted1);
-    await decryptContent(encrypted2);
+    await decryptContent(encrypted1, TEST_PASSWORD);
+    await decryptContent(encrypted2, TEST_PASSWORD);
     expect(signatureCount).toBe(1); // Still 1
 
     // Verify decryption works
-    expect(await decryptContent(encrypted1)).toBe('Content 1');
-    expect(await decryptContent(encrypted2)).toBe('Content 2');
+    expect(await decryptContent(encrypted1, TEST_PASSWORD)).toBe('Content 1');
+    expect(await decryptContent(encrypted2, TEST_PASSWORD)).toBe('Content 2');
   });
 
   it('VALIDATION 8: Empty string handling', async () => {
     const original = '';
-    const encrypted = await encryptContent(original);
-    const decrypted = await decryptContent(encrypted);
+    const encrypted = await encryptContent(original, TEST_PASSWORD);
+    const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
     expect(decrypted).toBe('');
   });
 
   it('VALIDATION 9: Very long content (100KB)', async () => {
     const original = 'Lorem ipsum dolor sit amet. '.repeat(4000); // ~100KB
 
-    const encrypted = await encryptContent(original);
-    const decrypted = await decryptContent(encrypted);
+    const encrypted = await encryptContent(original, TEST_PASSWORD);
+    const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
 
     expect(decrypted).toBe(original);
     expect(decrypted.length).toBeGreaterThan(100000);
@@ -186,15 +188,15 @@ describe('Encryption Validation - Triple Check', () => {
     clearEncryptionCache();
 
     // Encrypt with first session
-    const encrypted1 = await encryptContent('Test');
-    const decrypted1 = await decryptContent(encrypted1);
+    const encrypted1 = await encryptContent('Test', TEST_PASSWORD);
+    const decrypted1 = await decryptContent(encrypted1, TEST_PASSWORD);
     expect(decrypted1).toBe('Test');
 
     // Clear cache and re-derive key
     clearEncryptionCache();
 
     // Should still decrypt (deterministic derivation from same wallet)
-    const decrypted2 = await decryptContent(encrypted1);
+    const decrypted2 = await decryptContent(encrypted1, TEST_PASSWORD);
     expect(decrypted2).toBe('Test');
   });
 });

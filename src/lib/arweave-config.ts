@@ -74,7 +74,7 @@ export function getUploadTags(prompt: Prompt, isEncrypted: boolean): ArweaveTag[
  */
 export function getProtocolVersion(): string {
   const protocolTag = arweaveConfig.upload.tags.find(tag => tag.name === 'Protocol');
-  return protocolTag?.value || 'Pocket-Prompt-v3.2';
+  return protocolTag?.value || 'Pocket-Prompt-v3.3';
 }
 
 /**
@@ -82,7 +82,7 @@ export function getProtocolVersion(): string {
  */
 export function getQueryFilters() {
   return {
-    protocol: arweaveConfig.query.filters.find(f => f.name === 'Protocol')?.values[0] || 'Pocket-Prompt-v3.2',
+    protocol: arweaveConfig.query.filters.find(f => f.name === 'Protocol')?.values[0] || 'Pocket-Prompt-v3.3',
     appName: arweaveConfig.query.filters.find(f => f.name === 'App-Name')?.values[0] || 'Pocket Prompt',
   };
 }

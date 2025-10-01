@@ -8,6 +8,7 @@ import { PromptDialog } from '@/components/PromptDialog';
 import { PromptEditor } from '@/components/PromptEditor';
 import { VersionHistory } from '@/components/VersionHistory';
 import { UploadDialog } from '@/components/UploadDialog';
+import { PasswordPrompt } from '@/components/PasswordPrompt';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useWallet } from '@/hooks/useWallet';
 import { usePrompts } from '@/hooks/usePrompts';
+import { usePassword } from '@/contexts/PasswordContext';
 import { useInitializeTheme } from '@/hooks/useTheme';
 import type { Prompt, PromptVersion } from '@/types/prompt';
 import { searchPrompts } from '@/lib/search';
@@ -29,6 +31,7 @@ import { getViewMode, saveViewMode } from '@/lib/storage';
 function App() {
   useInitializeTheme();
   const { connected } = useWallet();
+  const { password, setPassword, hasPassword } = usePassword();
   const {
     prompts,
     loading,
@@ -50,6 +53,7 @@ function App() {
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>(() => getViewMode());
+  const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
 
   const toggleViewMode = () => {
     const newMode = viewMode === 'list' ? 'cards' : 'list';
@@ -57,12 +61,24 @@ function App() {
     saveViewMode(newMode);
   };
 
-  // Load prompts when wallet connects
+  // Prompt for password when wallet connects (if not already set)
   useEffect(() => {
-    if (connected) {
-      loadPrompts();
+    if (connected && !hasPassword) {
+      setPasswordPromptOpen(true);
     }
-  }, [connected, loadPrompts]);
+  }, [connected, hasPassword]);
+
+  // Load prompts after password is set
+  useEffect(() => {
+    if (connected && hasPassword) {
+      loadPrompts(password || undefined);
+    }
+  }, [connected, hasPassword, password, loadPrompts]);
+
+  const handlePasswordSet = (newPassword: string) => {
+    setPassword(newPassword);
+    setPasswordPromptOpen(false);
+  };
 
   // Filter prompts based on search and tags
   const filteredPrompts = prompts.filter(prompt => {
@@ -112,9 +128,9 @@ function App() {
 
   const handleSave = async (data: Partial<Prompt>) => {
     if (editingPrompt) {
-      return await updatePrompt(editingPrompt.id, data);
+      return await updatePrompt(editingPrompt.id, data, password || undefined);
     } else {
-      return await addPrompt(data as Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>);
+      return await addPrompt(data as Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>, password || undefined);
     }
   };
 
@@ -122,14 +138,14 @@ function App() {
     if (!selectedPrompt) return;
 
     // Fetch the old version and create a new version from it
-    const oldPrompt = await import('@/lib/arweave').then(m => m.fetchPrompt(version.txId));
+    const oldPrompt = await import('@/lib/arweave').then(m => m.fetchPrompt(version.txId, password || undefined));
     if (oldPrompt) {
       await updatePrompt(selectedPrompt.id, {
         content: oldPrompt.content,
         title: oldPrompt.title,
         description: oldPrompt.description,
         tags: oldPrompt.tags,
-      });
+      }, password || undefined);
     }
   };
 
@@ -151,7 +167,7 @@ function App() {
             description: result.prompt!.description,
             content: result.prompt!.content,
             tags: result.prompt!.tags,
-          });
+          }, password || undefined);
           updated++;
         } else {
           // Add new prompt
@@ -164,7 +180,7 @@ function App() {
             versions: [],
             isArchived: false,
             isSynced: false,
-          } as Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>);
+          } as Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>, password || undefined);
           imported++;
         }
       } catch (err) {
@@ -293,8 +309,8 @@ function App() {
                   prompt={prompt}
                   onView={() => handleView(prompt)}
                   onEdit={() => handleEdit(prompt)}
-                  onArchive={() => archivePrompt(prompt.id)}
-                  onRestore={() => restorePrompt(prompt.id)}
+                  onArchive={() => archivePrompt(prompt.id, password || undefined)}
+                  onRestore={() => restorePrompt(prompt.id, password || undefined)}
                   onCopy={() => handleCopy(prompt)}
                 />
                 {index < filteredPrompts.length - 1 && <div className="border-b border-border" />}
@@ -309,8 +325,8 @@ function App() {
                 prompt={prompt}
                 onView={() => handleView(prompt)}
                 onEdit={() => handleEdit(prompt)}
-                onArchive={() => archivePrompt(prompt.id)}
-                onRestore={() => restorePrompt(prompt.id)}
+                onArchive={() => archivePrompt(prompt.id, password || undefined)}
+                onRestore={() => restorePrompt(prompt.id, password || undefined)}
                 onCopy={() => handleCopy(prompt)}
               />
             ))}
@@ -325,7 +341,7 @@ function App() {
         onOpenChange={setViewDialogOpen}
         prompt={selectedPrompt}
         onEdit={() => handleEdit(selectedPrompt!)}
-        onArchive={() => archivePrompt(selectedPrompt!.id)}
+        onArchive={() => archivePrompt(selectedPrompt!.id, password || undefined)}
         onShowVersions={() => {
           setViewDialogOpen(false);
           setVersionHistoryOpen(true);
@@ -351,6 +367,12 @@ function App() {
         onOpenChange={setUploadDialogOpen}
         onImport={handleBatchImport}
         existingPromptIds={prompts.map(p => p.id)}
+      />
+
+      <PasswordPrompt
+        open={passwordPromptOpen}
+        onPasswordSet={handlePasswordSet}
+        onCancel={() => setPasswordPromptOpen(false)}
       />
 
       {/* Floating Action Button */}

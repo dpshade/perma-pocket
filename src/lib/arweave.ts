@@ -268,7 +268,8 @@ export async function queryPromptsByTags(
  */
 export async function uploadPrompt(
   prompt: Prompt,
-  arweaveWallet: any
+  arweaveWallet: any,
+  password?: string
 ): Promise<ArweaveUploadResult> {
   try {
     // Create ArConnect signer
@@ -279,7 +280,7 @@ export async function uploadPrompt(
 
     // Encrypt content if no "public" tag
     const isPublic = !shouldEncrypt(prompt.tags);
-    const processedContent = await prepareContentForUpload(prompt.content, prompt.tags);
+    const processedContent = await prepareContentForUpload(prompt.content, prompt.tags, password);
 
     // Create upload payload with potentially encrypted content
     const uploadData = {
@@ -337,7 +338,8 @@ export async function uploadPrompt(
 export async function updatePromptArchiveStatus(
   prompt: Prompt,
   isArchived: boolean,
-  arweaveWallet: any
+  arweaveWallet: any,
+  password?: string
 ): Promise<ArweaveUploadResult> {
   try {
     // Create ArConnect signer
@@ -355,7 +357,7 @@ export async function updatePromptArchiveStatus(
 
     // Encrypt content if needed (use existing content which may already be encrypted)
     const isPublic = !shouldEncrypt(prompt.tags);
-    const processedContent = await prepareContentForUpload(prompt.content, prompt.tags);
+    const processedContent = await prepareContentForUpload(prompt.content, prompt.tags, password);
 
     // Create upload payload with updated archive status
     const uploadData = {
@@ -412,7 +414,8 @@ export async function updatePromptArchiveStatus(
  */
 export async function bulkUploadPrompts(
   prompts: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt' | 'currentTxId' | 'versions' | 'isSynced' | 'isArchived'>[],
-  arweaveWallet: any
+  arweaveWallet: any,
+  password?: string
 ): Promise<{ success: boolean; results: ArweaveUploadResult[]; errors: string[] }> {
   try {
     console.log(`[Bulk Upload] Starting bulk upload of ${prompts.length} prompts`);
@@ -440,7 +443,7 @@ export async function bulkUploadPrompts(
       };
 
       // Encrypt content if needed (uses cached master key after first prompt)
-      const processedContent = await prepareContentForUpload(prompt.content, prompt.tags);
+      const processedContent = await prepareContentForUpload(prompt.content, prompt.tags, password);
 
       preparedPrompts.push({ ...prompt, content: processedContent as any });
     }
@@ -555,7 +558,7 @@ async function fetchTransactionTags(txId: string): Promise<GraphQLTag[]> {
 /**
  * Fetch a prompt from Arweave by transaction ID
  */
-export async function fetchPrompt(txId: string): Promise<Prompt | null> {
+export async function fetchPrompt(txId: string, password?: string): Promise<Prompt | null> {
   try {
     console.log(`[Fetch] Fetching prompt ${txId}...`);
 
@@ -577,7 +580,7 @@ export async function fetchPrompt(txId: string): Promise<Prompt | null> {
     if (typeof content === 'object' && content.isEncrypted) {
       try {
         console.log(`[Fetch] ${txId} - Decrypting...`);
-        content = await prepareContentForDisplay(content);
+        content = await prepareContentForDisplay(content, password);
         console.log(`[Fetch] ${txId} - Decryption successful`);
       } catch (error) {
         console.error(`[Fetch] ${txId} - Decryption FAILED:`, error);
@@ -609,8 +612,8 @@ export async function fetchPrompt(txId: string): Promise<Prompt | null> {
 /**
  * Fetch multiple prompts in parallel
  */
-export async function fetchPrompts(txIds: string[]): Promise<Prompt[]> {
-  const promises = txIds.map(txId => fetchPrompt(txId));
+export async function fetchPrompts(txIds: string[], password?: string): Promise<Prompt[]> {
+  const promises = txIds.map(txId => fetchPrompt(txId, password));
   const results = await Promise.allSettled(promises);
 
   return results

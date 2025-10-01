@@ -1,11 +1,12 @@
 /**
- * Encryption utilities for Pocket Prompt using Arweave wallet
+ * Encryption utilities for Pocket Prompt using Arweave wallet + password
  *
- * New approach: Session-based encryption
- * 1. User signs a standard message once per session
- * 2. Derive a master AES-256 key from the signature
+ * Approach: Wallet + Password Hybrid Encryption (v3.3)
+ * 1. User provides password once per session
+ * 2. Derive master AES-256 key from: wallet address + password
  * 3. Use this key to encrypt/decrypt all prompt content
- * 4. No more signatures required after initial setup
+ * 4. Deterministic: same wallet + same password = same key (works across devices)
+ * 5. Secure: password is secret, PBKDF2 with 250k iterations
  */
 
 export interface EncryptedData {
@@ -23,6 +24,7 @@ export interface DecryptedData {
 // Session cache for the derived master key
 let sessionMasterKey: CryptoKey | null = null;
 let currentWalletAddress: string | null = null;
+let currentPasswordHash: string | null = null; // Hash to verify password hasn't changed
 let pendingKeyDerivation: Promise<CryptoKey> | null = null;
 
 /**
@@ -71,20 +73,31 @@ function base64ToArrayBuffer(base64: string): Uint8Array {
 }
 
 /**
- * Derive a master encryption key from wallet signature
- * This only requires ONE signature per session
- * Uses a pending promise to prevent race conditions during parallel decryption
+ * Hash a password for cache verification (not for encryption)
  */
-async function getOrCreateMasterKey(): Promise<CryptoKey> {
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return arrayBufferToBase64(hashBuffer);
+}
+
+/**
+ * Derive a master encryption key from wallet address + password
+ * This is deterministic: same wallet + same password = same key
+ * Uses a pending promise to prevent race conditions during parallel derivation
+ */
+async function getOrCreateMasterKey(password: string): Promise<CryptoKey> {
   if (!window.arweaveWallet) {
     throw new Error('Arweave wallet not connected');
   }
 
   // Get current wallet address
   const address = await window.arweaveWallet.getActiveAddress();
+  const passwordHash = await hashPassword(password);
 
-  // If we have a cached key for this wallet, use it
-  if (sessionMasterKey && currentWalletAddress === address) {
+  // If we have a cached key for this wallet and password, use it
+  if (sessionMasterKey && currentWalletAddress === address && currentPasswordHash === passwordHash) {
     console.log('[Encryption] Using cached master key');
     return sessionMasterKey;
   }
@@ -96,41 +109,31 @@ async function getOrCreateMasterKey(): Promise<CryptoKey> {
   }
 
   // Start new key derivation and cache the promise
-  console.log('[Encryption] Deriving master encryption key (requires one signature)...');
+  console.log('[Encryption] Deriving master encryption key from wallet + password...');
 
   pendingKeyDerivation = (async () => {
     try {
-      // Standard message to sign
-      const message = new TextEncoder().encode(
-        `Pocket Prompt Encryption Key\nWallet: ${address}\nThis signature creates your encryption key for this session.`
-      );
+      // Combine wallet address and password as input
+      const combinedInput = new TextEncoder().encode(`${address}:${password}`);
 
-      // Get wallet signature (this is the ONLY signature needed)
-      const signature = await window.arweaveWallet.signMessage(message, {
-        hashAlgorithm: 'SHA-256',
-      });
-
-      // Convert signature to Uint8Array if needed
-      const signatureBytes = signature instanceof Uint8Array
-        ? signature
-        : new Uint8Array(signature);
-
-      // Derive a cryptographic key from the signature using PBKDF2
+      // Import the combined input as raw key material
       const importedKey = await crypto.subtle.importKey(
         'raw',
-        signatureBytes,
+        combinedInput,
         'PBKDF2',
         false,
-        ['deriveBits', 'deriveKey']
+        ['deriveKey']
       );
 
-      const salt = new TextEncoder().encode(`pocket-prompt-${address}`);
+      // Use app-specific salt
+      const salt = new TextEncoder().encode('pocket-prompt-v3.3');
 
+      // Derive master AES-256 key using PBKDF2 with 250,000 iterations
       const masterKey = await crypto.subtle.deriveKey(
         {
           name: 'PBKDF2',
           salt: salt,
-          iterations: 100000,
+          iterations: 250000, // High iteration count for brute-force resistance
           hash: 'SHA-256',
         },
         importedKey,
@@ -145,6 +148,7 @@ async function getOrCreateMasterKey(): Promise<CryptoKey> {
       // Cache for this session
       sessionMasterKey = masterKey;
       currentWalletAddress = address;
+      currentPasswordHash = passwordHash;
 
       console.log('[Encryption] Master encryption key derived successfully');
 
@@ -159,23 +163,24 @@ async function getOrCreateMasterKey(): Promise<CryptoKey> {
 }
 
 /**
- * Clear the cached master key (call on wallet disconnect)
+ * Clear the cached master key (call on wallet disconnect or password change)
  */
 export function clearEncryptionCache(): void {
   sessionMasterKey = null;
   currentWalletAddress = null;
+  currentPasswordHash = null;
   pendingKeyDerivation = null;
   console.log('[Encryption] Cache cleared');
 }
 
 /**
- * Encrypt content using session-based encryption
- * Only requires ONE signature per session (for master key derivation)
+ * Encrypt content using password-based encryption
+ * Requires password for key derivation (cached for session)
  */
-export async function encryptContent(content: string): Promise<EncryptedData> {
+export async function encryptContent(content: string, password: string): Promise<EncryptedData> {
   try {
-    // Get or create master key (only requires signature on first call)
-    const masterKey = await getOrCreateMasterKey();
+    // Get or create master key using password
+    const masterKey = await getOrCreateMasterKey(password);
 
     // Generate random AES key for this content
     const contentKey = await generateAESKey();
@@ -228,13 +233,13 @@ export async function encryptContent(content: string): Promise<EncryptedData> {
 }
 
 /**
- * Decrypt content using session-based encryption
- * Uses cached master key (no signature required after first call)
+ * Decrypt content using password-based encryption
+ * Requires the same password used for encryption
  */
-export async function decryptContent(encryptedData: EncryptedData): Promise<string> {
+export async function decryptContent(encryptedData: EncryptedData, password: string): Promise<string> {
   try {
-    // Get master key (uses cached version if available)
-    const masterKey = await getOrCreateMasterKey();
+    // Get master key using password
+    const masterKey = await getOrCreateMasterKey(password);
 
     // Parse encrypted key data (contains IV + encrypted key)
     const combinedKeyData = base64ToArrayBuffer(encryptedData.encryptedKey);
@@ -286,6 +291,22 @@ export async function decryptContent(encryptedData: EncryptedData): Promise<stri
 }
 
 /**
+ * Validate a password by attempting to decrypt encrypted data
+ * Returns true if password is correct, false otherwise
+ */
+export async function validatePassword(
+  encryptedData: EncryptedData,
+  password: string
+): Promise<boolean> {
+  try {
+    await decryptContent(encryptedData, password);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if a prompt should be encrypted based on tags
  * Prompts with "public" tag are not encrypted
  * This is used for UPLOAD decisions only
@@ -321,29 +342,39 @@ export function wasPromptEncrypted(tags: string[]): boolean {
 
 /**
  * Prepare content for upload - encrypt if needed
+ * Requires password if encryption is needed
  */
 export async function prepareContentForUpload(
   content: string,
-  tags: string[]
+  tags: string[],
+  password?: string
 ): Promise<string | EncryptedData> {
   if (shouldEncrypt(tags)) {
-    return await encryptContent(content);
+    if (!password) {
+      throw new Error('Password required for encrypted content');
+    }
+    return await encryptContent(content, password);
   }
   return content;
 }
 
 /**
  * Prepare content for display - decrypt if needed
+ * Requires password if content is encrypted
  */
 export async function prepareContentForDisplay(
-  content: string | EncryptedData
+  content: string | EncryptedData,
+  password?: string
 ): Promise<string> {
   if (typeof content === 'string') {
     return content;
   }
 
   if (isEncrypted(content)) {
-    return await decryptContent(content);
+    if (!password) {
+      throw new Error('Password required to decrypt content');
+    }
+    return await decryptContent(content, password);
   }
 
   return String(content);

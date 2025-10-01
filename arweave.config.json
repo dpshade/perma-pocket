@@ -14,7 +14,7 @@
       },
       {
         "name": "App-Version",
-        "value": "3.2.0",
+        "value": "3.3.0",
         "description": "Application version (semantic versioning: MAJOR.MINOR.PATCH)"
       },
       {
@@ -24,8 +24,8 @@
       },
       {
         "name": "Protocol",
-        "value": "Pocket-Prompt-v3.2",
-        "description": "Protocol identifier for discoverability (v3.2 = signMessage API with SHA-256)"
+        "value": "Pocket-Prompt-v3.3",
+        "description": "Protocol identifier for discoverability (v3.3 = wallet + password hybrid encryption)"
       },
       {
         "name": "Data-Protocol",
@@ -98,8 +98,8 @@
       },
       {
         "name": "Protocol",
-        "values": ["Pocket-Prompt-v3.2"],
-        "description": "Filter by protocol version (v3.2 = signMessage API with SHA-256)"
+        "values": ["Pocket-Prompt-v3.3"],
+        "description": "Filter by protocol version (v3.3 = wallet + password hybrid encryption)"
       }
     ],
     "owner": {

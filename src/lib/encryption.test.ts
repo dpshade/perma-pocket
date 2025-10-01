@@ -11,6 +11,8 @@ import {
   type EncryptedData,
 } from './encryption';
 
+const TEST_PASSWORD = 'test-password-123';
+
 describe('Encryption Utilities', () => {
   describe('Type Guards and Validation', () => {
     describe('isEncrypted', () => {
@@ -133,7 +135,7 @@ describe('Encryption Utilities', () => {
 
     describe('encryptContent', () => {
       it('should encrypt content successfully', async () => {
-        const encrypted = await encryptContent(testContent);
+        const encrypted = await encryptContent(testContent, TEST_PASSWORD);
 
         expect(encrypted.isEncrypted).toBe(true);
         expect(encrypted.encryptedContent).toBeTruthy();
@@ -145,7 +147,7 @@ describe('Encryption Utilities', () => {
       });
 
       it('should call wallet signMessage method for session key', async () => {
-        await encryptContent(testContent);
+        await encryptContent(testContent, TEST_PASSWORD);
         // Session-based encryption uses signMessage() to derive master key
         expect(window.arweaveWallet.signMessage).toHaveBeenCalled();
 
@@ -163,7 +165,7 @@ describe('Encryption Utilities', () => {
         const originalWallet = window.arweaveWallet;
         (window as any).arweaveWallet = undefined;
 
-        await expect(encryptContent(testContent)).rejects.toThrow(
+        await expect(encryptContent(testContent, TEST_PASSWORD)).rejects.toThrow(
           'Arweave wallet not connected'
         );
 
@@ -172,8 +174,8 @@ describe('Encryption Utilities', () => {
 
       it('should produce different encrypted outputs for same content', async () => {
         // Due to random IV, each encryption should be unique
-        const encrypted1 = await encryptContent(testContent);
-        const encrypted2 = await encryptContent(testContent);
+        const encrypted1 = await encryptContent(testContent, TEST_PASSWORD);
+        const encrypted2 = await encryptContent(testContent, TEST_PASSWORD);
 
         expect(encrypted1.encryptedContent).not.toBe(
           encrypted2.encryptedContent
@@ -184,28 +186,28 @@ describe('Encryption Utilities', () => {
 
     describe('decryptContent', () => {
       it('should decrypt encrypted content back to original', async () => {
-        const encrypted = await encryptContent(testContent);
-        const decrypted = await decryptContent(encrypted);
+        const encrypted = await encryptContent(testContent, TEST_PASSWORD);
+        const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
 
         expect(decrypted).toBe(testContent);
       });
 
       it('should use cached session key (no additional signatures)', async () => {
-        const encrypted = await encryptContent(testContent);
+        const encrypted = await encryptContent(testContent, TEST_PASSWORD);
         vi.clearAllMocks(); // Clear the signMessage call from encryption
 
-        await decryptContent(encrypted);
+        await decryptContent(encrypted, TEST_PASSWORD);
 
         // Decryption should NOT call signMessage() again since the session key is cached
         expect(window.arweaveWallet.signMessage).not.toHaveBeenCalled();
       });
 
       it('should throw error when wallet is not connected', async () => {
-        const encrypted = await encryptContent(testContent);
+        const encrypted = await encryptContent(testContent, TEST_PASSWORD);
         const originalWallet = window.arweaveWallet;
         (window as any).arweaveWallet = undefined;
 
-        await expect(decryptContent(encrypted)).rejects.toThrow(
+        await expect(decryptContent(encrypted, TEST_PASSWORD)).rejects.toThrow(
           'Arweave wallet not connected'
         );
 
@@ -222,8 +224,8 @@ describe('Encryption Utilities', () => {
         ];
 
         for (const content of contents) {
-          const encrypted = await encryptContent(content);
-          const decrypted = await decryptContent(encrypted);
+          const encrypted = await encryptContent(content, TEST_PASSWORD);
+          const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
           expect(decrypted).toBe(content);
         }
       });
@@ -240,8 +242,8 @@ describe('Encryption Utilities', () => {
         ];
 
         for (const testCase of testCases) {
-          const encrypted = await encryptContent(testCase);
-          const decrypted = await decryptContent(encrypted);
+          const encrypted = await encryptContent(testCase, TEST_PASSWORD);
+          const decrypted = await decryptContent(encrypted, TEST_PASSWORD);
           expect(decrypted).toBe(testCase);
         }
       });
@@ -260,14 +262,14 @@ describe('Encryption Utilities', () => {
         const result = await prepareContentForUpload(testContent, [
           'work',
           'draft',
-        ]);
+        ], TEST_PASSWORD);
 
         expect(isEncrypted(result)).toBe(true);
         expect(window.arweaveWallet.signMessage).toHaveBeenCalled();
       });
 
       it('should not encrypt content when tags include public', async () => {
-        const result = await prepareContentForUpload(testContent, ['public']);
+        const result = await prepareContentForUpload(testContent, ['public'], TEST_PASSWORD);
 
         expect(result).toBe(testContent);
         expect(window.arweaveWallet.signMessage).not.toHaveBeenCalled();
@@ -280,7 +282,7 @@ describe('Encryption Utilities', () => {
           vi.clearAllMocks();
           const result = await prepareContentForUpload(testContent, [
             publicTag,
-          ]);
+          ], TEST_PASSWORD);
           expect(result).toBe(testContent);
         }
       });
@@ -288,33 +290,33 @@ describe('Encryption Utilities', () => {
       it('should encrypt when public is not the exact tag', async () => {
         const result = await prepareContentForUpload(testContent, [
           'publicize',
-        ]);
+        ], TEST_PASSWORD);
         expect(isEncrypted(result)).toBe(true);
       });
     });
 
     describe('prepareContentForDisplay', () => {
       it('should return string content as-is', async () => {
-        const result = await prepareContentForDisplay(testContent);
+        const result = await prepareContentForDisplay(testContent, TEST_PASSWORD);
         expect(result).toBe(testContent);
       });
 
       it('should decrypt encrypted content', async () => {
-        const encrypted = await encryptContent(testContent);
-        const result = await prepareContentForDisplay(encrypted);
+        const encrypted = await encryptContent(testContent, TEST_PASSWORD);
+        const result = await prepareContentForDisplay(encrypted, TEST_PASSWORD);
 
         expect(result).toBe(testContent);
       });
 
       it('should handle already decrypted content', async () => {
         const plainText = 'Already plain text';
-        const result = await prepareContentForDisplay(plainText);
+        const result = await prepareContentForDisplay(plainText, TEST_PASSWORD);
 
         expect(result).toBe(plainText);
       });
 
       it('should convert non-string, non-encrypted data to string', async () => {
-        const result = await prepareContentForDisplay({ foo: 'bar' } as any);
+        const result = await prepareContentForDisplay({ foo: 'bar' } as any, TEST_PASSWORD);
         expect(typeof result).toBe('string');
       });
     });
@@ -327,7 +329,7 @@ describe('Encryption Utilities', () => {
         .fn()
         .mockRejectedValue(new Error('signMessage failed'));
 
-      await expect(encryptContent('test')).rejects.toThrow(
+      await expect(encryptContent('test', TEST_PASSWORD)).rejects.toThrow(
         'Failed to encrypt content'
       );
 
@@ -335,7 +337,7 @@ describe('Encryption Utilities', () => {
     });
 
     it('should handle decryption errors gracefully', async () => {
-      const encrypted = await encryptContent('test');
+      const encrypted = await encryptContent('test', TEST_PASSWORD);
 
       // Corrupt the encrypted key to cause decryption failure
       const corruptedData = {
@@ -343,7 +345,7 @@ describe('Encryption Utilities', () => {
         encryptedKey: 'corrupted-invalid-data',
       };
 
-      await expect(decryptContent(corruptedData)).rejects.toThrow(
+      await expect(decryptContent(corruptedData, TEST_PASSWORD)).rejects.toThrow(
         'Failed to decrypt content'
       );
     });
@@ -356,23 +358,23 @@ describe('Encryption Utilities', () => {
         isEncrypted: true,
       } as EncryptedData;
 
-      await expect(decryptContent(invalidData)).rejects.toThrow();
+      await expect(decryptContent(invalidData, TEST_PASSWORD)).rejects.toThrow();
     });
   });
 
   describe('Backward Compatibility', () => {
     it('should handle unencrypted legacy content', async () => {
       const legacyContent = 'This is old unencrypted content';
-      const result = await prepareContentForDisplay(legacyContent);
+      const result = await prepareContentForDisplay(legacyContent, TEST_PASSWORD);
 
       expect(result).toBe(legacyContent);
     });
 
     it('should not try to encrypt empty content', async () => {
-      const result = await prepareContentForUpload('', ['work']);
+      const result = await prepareContentForUpload('', ['work'], TEST_PASSWORD);
       expect(isEncrypted(result)).toBe(true);
 
-      const decrypted = await prepareContentForDisplay(result as EncryptedData);
+      const decrypted = await prepareContentForDisplay(result as EncryptedData, TEST_PASSWORD);
       expect(decrypted).toBe('');
     });
   });

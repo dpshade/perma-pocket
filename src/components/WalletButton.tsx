@@ -2,10 +2,12 @@ import { useEffect } from 'react';
 import { Wallet, LogOut, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/useWallet';
+import { usePassword } from '@/contexts/PasswordContext';
 import { useState } from 'react';
 
 export function WalletButton() {
   const { address, connected, connecting, connect, disconnect, checkConnection } = useWallet();
+  const { clearPassword } = usePassword();
   const [copied, setCopied] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -27,6 +29,7 @@ export function WalletButton() {
 
   const handleDisconnect = () => {
     disconnect();
+    clearPassword(); // Clear encryption password from session
     setShowDropdown(false);
   };
 
