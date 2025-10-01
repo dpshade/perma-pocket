@@ -124,6 +124,25 @@ export function getCachedPrompts(): Record<string, Prompt> {
 }
 
 /**
+ * Check if user has any encrypted prompts in cache
+ * Returns true if any cached prompts were encrypted (don't have "public" tag)
+ */
+export function hasEncryptedPromptsInCache(): boolean {
+  try {
+    const cached = getCachedPrompts();
+    const prompts = Object.values(cached);
+
+    // Check if any prompts were encrypted (no "public" tag)
+    return prompts.some(prompt =>
+      !prompt.tags.some(tag => tag.toLowerCase() === 'public')
+    );
+  } catch (error) {
+    console.error('Error checking encrypted prompts:', error);
+    return false;
+  }
+}
+
+/**
  * Cache a single prompt
  */
 export function cachePrompt(prompt: Prompt): void {

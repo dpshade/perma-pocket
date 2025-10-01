@@ -9,6 +9,7 @@ import { PromptEditor } from '@/components/PromptEditor';
 import { VersionHistory } from '@/components/VersionHistory';
 import { UploadDialog } from '@/components/UploadDialog';
 import { PasswordPrompt } from '@/components/PasswordPrompt';
+import { PasswordUnlock } from '@/components/PasswordUnlock';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +27,8 @@ import type { Prompt, PromptVersion } from '@/types/prompt';
 import { searchPrompts } from '@/lib/search';
 import { evaluateExpression } from '@/lib/boolean';
 import type { FileImportResult } from '@/lib/import';
-import { getViewMode, saveViewMode } from '@/lib/storage';
+import { getViewMode, saveViewMode, hasEncryptedPromptsInCache } from '@/lib/storage';
+import type { EncryptedData } from '@/lib/encryption';
 
 function App() {
   useInitializeTheme();
@@ -54,6 +56,8 @@ function App() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>(() => getViewMode());
   const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
+  const [passwordUnlockOpen, setPasswordUnlockOpen] = useState(false);
+  const [sampleEncryptedData, setSampleEncryptedData] = useState<EncryptedData | null>(null);
 
   const toggleViewMode = () => {
     const newMode = viewMode === 'list' ? 'cards' : 'list';
@@ -61,11 +65,52 @@ function App() {
     saveViewMode(newMode);
   };
 
-  // Prompt for password when wallet connects (if not already set)
+  // Determine which password dialog to show when wallet connects
   useEffect(() => {
-    if (connected && !hasPassword) {
-      setPasswordPromptOpen(true);
-    }
+    const checkForEncryptedPrompts = async () => {
+      if (!connected || hasPassword) return;
+
+      // Check if user has existing encrypted prompts
+      const hasEncrypted = hasEncryptedPromptsInCache();
+
+      if (hasEncrypted) {
+        // Returning user - fetch one encrypted prompt for password validation
+        console.log('[App] User has encrypted prompts, showing unlock dialog');
+
+        // Get first encrypted prompt from cache
+        const { getCachedPrompts } = await import('@/lib/storage');
+        const cached = getCachedPrompts();
+        const encryptedPrompt = Object.values(cached).find(p =>
+          !p.tags.some(tag => tag.toLowerCase() === 'public')
+        );
+
+        if (encryptedPrompt) {
+          // Fetch the encrypted content for password validation
+          const { fetchPrompt } = await import('@/lib/arweave');
+          const promptWithEncrypted = await fetchPrompt(
+            encryptedPrompt.currentTxId,
+            undefined,
+            true // skipDecryption
+          );
+
+          if (promptWithEncrypted && typeof promptWithEncrypted.content === 'object') {
+            setSampleEncryptedData(promptWithEncrypted.content);
+            setPasswordUnlockOpen(true);
+          } else {
+            // Fallback to password prompt if we can't get encrypted data
+            setPasswordPromptOpen(true);
+          }
+        } else {
+          setPasswordPromptOpen(true);
+        }
+      } else {
+        // New user - show password setup
+        console.log('[App] New user, showing password setup dialog');
+        setPasswordPromptOpen(true);
+      }
+    };
+
+    checkForEncryptedPrompts();
   }, [connected, hasPassword]);
 
   // Load prompts after password is set
@@ -78,6 +123,12 @@ function App() {
   const handlePasswordSet = (newPassword: string) => {
     setPassword(newPassword);
     setPasswordPromptOpen(false);
+  };
+
+  const handlePasswordUnlock = (unlockedPassword: string) => {
+    setPassword(unlockedPassword);
+    setPasswordUnlockOpen(false);
+    setSampleEncryptedData(null);
   };
 
   // Filter prompts based on search and tags
@@ -373,6 +424,13 @@ function App() {
         open={passwordPromptOpen}
         onPasswordSet={handlePasswordSet}
         onCancel={() => setPasswordPromptOpen(false)}
+      />
+
+      <PasswordUnlock
+        open={passwordUnlockOpen}
+        sampleEncryptedData={sampleEncryptedData}
+        onPasswordUnlock={handlePasswordUnlock}
+        onCancel={() => setPasswordUnlockOpen(false)}
       />
 
       {/* Floating Action Button */}

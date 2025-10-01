@@ -558,7 +558,7 @@ async function fetchTransactionTags(txId: string): Promise<GraphQLTag[]> {
 /**
  * Fetch a prompt from Arweave by transaction ID
  */
-export async function fetchPrompt(txId: string, password?: string): Promise<Prompt | null> {
+export async function fetchPrompt(txId: string, password?: string, skipDecryption = false): Promise<Prompt | null> {
   try {
     console.log(`[Fetch] Fetching prompt ${txId}...`);
 
@@ -578,14 +578,19 @@ export async function fetchPrompt(txId: string, password?: string): Promise<Prom
     // Check if content is encrypted and decrypt if needed
     let content = promptData.content;
     if (typeof content === 'object' && content.isEncrypted) {
-      try {
-        console.log(`[Fetch] ${txId} - Decrypting...`);
-        content = await prepareContentForDisplay(content, password);
-        console.log(`[Fetch] ${txId} - Decryption successful`);
-      } catch (error) {
-        console.error(`[Fetch] ${txId} - Decryption FAILED:`, error);
-        // If decryption fails, return null so the prompt is skipped
-        return null;
+      if (skipDecryption) {
+        // Keep encrypted content as-is for password validation
+        console.log(`[Fetch] ${txId} - Keeping encrypted content for validation`);
+      } else {
+        try {
+          console.log(`[Fetch] ${txId} - Decrypting...`);
+          content = await prepareContentForDisplay(content, password);
+          console.log(`[Fetch] ${txId} - Decryption successful`);
+        } catch (error) {
+          console.error(`[Fetch] ${txId} - Decryption FAILED:`, error);
+          // If decryption fails, return null so the prompt is skipped
+          return null;
+        }
       }
     }
 
@@ -612,8 +617,8 @@ export async function fetchPrompt(txId: string, password?: string): Promise<Prom
 /**
  * Fetch multiple prompts in parallel
  */
-export async function fetchPrompts(txIds: string[], password?: string): Promise<Prompt[]> {
-  const promises = txIds.map(txId => fetchPrompt(txId, password));
+export async function fetchPrompts(txIds: string[], password?: string, skipDecryption = false): Promise<Prompt[]> {
+  const promises = txIds.map(txId => fetchPrompt(txId, password, skipDecryption));
   const results = await Promise.allSettled(promises);
 
   return results
