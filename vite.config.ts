@@ -19,7 +19,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'fs': path.resolve(__dirname, './src/polyfills/fs.ts'),
+      'fs': path.resolve(__dirname, './src/shared/polyfills/fs.ts'),
     },
   },
   optimizeDeps: {
