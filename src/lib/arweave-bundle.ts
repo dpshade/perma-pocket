@@ -125,8 +125,8 @@ export async function uploadPromptBundle(
     const tags = [
       { name: 'Content-Type', value: 'application/json' },
       { name: 'App-Name', value: 'Pocket Prompt' },
-      { name: 'App-Version', value: '2.0.0' },
-      { name: 'Protocol', value: 'Pocket-Prompt-v3' },
+      { name: 'App-Version', value: '3.1.0' },
+      { name: 'Protocol', value: 'Pocket-Prompt-v3.1' },
       { name: 'Type', value: 'prompt-bundle' }, // Different type for bundles
       { name: 'Bundle-Id', value: bundleId },
       { name: 'Prompt-Count', value: preparedPrompts.length.toString() },
@@ -206,20 +206,72 @@ export function extractPromptsFromBundle(bundle: PromptBundle, bundleTxId: strin
   }));
 }
 
+// GraphQL endpoints - Goldsky has superior indexing speed and reliability
+const GRAPHQL_ENDPOINTS = {
+  primary: 'https://arweave-search.goldsky.com/graphql',
+  fallback: 'https://arweave.net/graphql',
+};
+
+/**
+ * Execute GraphQL query with automatic fallback
+ * Tries Goldsky first (faster indexing), falls back to arweave.net on failure
+ */
+async function executeGraphQLQuery(query: string, variables: Record<string, any>): Promise<any> {
+  const endpoints = [GRAPHQL_ENDPOINTS.primary, GRAPHQL_ENDPOINTS.fallback];
+
+  for (let i = 0; i < endpoints.length; i++) {
+    const endpoint = endpoints[i];
+    const isPrimary = i === 0;
+
+    try {
+      console.log(`[GraphQL] ${isPrimary ? 'Primary (Goldsky)' : 'Fallback (Arweave.net)'} query attempt...`);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+      }
+
+      console.log(`[GraphQL] ${isPrimary ? 'Goldsky' : 'Arweave.net'} query successful`);
+      return result;
+    } catch (error) {
+      console.warn(`[GraphQL] ${isPrimary ? 'Goldsky' : 'Arweave.net'} failed:`, error);
+
+      // If this was the last endpoint, throw the error
+      if (i === endpoints.length - 1) {
+        throw error;
+      }
+
+      // Otherwise, continue to next endpoint
+      console.log(`[GraphQL] Trying fallback endpoint...`);
+    }
+  }
+}
+
 /**
  * Query user's prompt bundles from GraphQL
  */
 export async function queryUserBundles(
   walletAddress: string
 ): Promise<string[]> {
-  const GRAPHQL_ENDPOINT = 'https://arweave.net/graphql';
-
   const query = `
     query($owner: String!) {
       transactions(
         owners: [$owner]
         tags: [
-          { name: "Protocol", values: ["Pocket-Prompt-v3"] }
+          { name: "Protocol", values: ["Pocket-Prompt-v3.1"] }
           { name: "Type", values: ["prompt-bundle"] }
         ]
         sort: HEIGHT_DESC
@@ -235,20 +287,7 @@ export async function queryUserBundles(
   `;
 
   try {
-    const response = await fetch(GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query,
-        variables: { owner: walletAddress },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`GraphQL query failed: ${response.statusText}`);
-    }
-
-    const result: any = await response.json();
+    const result: any = await executeGraphQLQuery(query, { owner: walletAddress });
     const bundleTxIds = result.data.transactions.edges.map((edge: any) => edge.node.id);
 
     console.log(`[Bundle Query] Found ${bundleTxIds.length} bundles for wallet`);

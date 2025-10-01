@@ -4,7 +4,60 @@ import { prepareContentForUpload, prepareContentForDisplay, shouldEncrypt, clear
 import { getUploadTags, getQueryFilters } from '@/lib/arweave-config';
 
 const ARWEAVE_GATEWAY = 'https://arweave.net';
-const GRAPHQL_ENDPOINT = 'https://arweave.net/graphql';
+
+// GraphQL endpoints - Goldsky has superior indexing speed and reliability
+const GRAPHQL_ENDPOINTS = {
+  primary: 'https://arweave-search.goldsky.com/graphql',
+  fallback: 'https://arweave.net/graphql',
+};
+
+/**
+ * Execute GraphQL query with automatic fallback
+ * Tries Goldsky first (faster indexing), falls back to arweave.net on failure
+ */
+async function executeGraphQLQuery(query: string, variables: Record<string, any>): Promise<any> {
+  const endpoints = [GRAPHQL_ENDPOINTS.primary, GRAPHQL_ENDPOINTS.fallback];
+
+  for (let i = 0; i < endpoints.length; i++) {
+    const endpoint = endpoints[i];
+    const isPrimary = i === 0;
+
+    try {
+      console.log(`[GraphQL] ${isPrimary ? 'Primary (Goldsky)' : 'Fallback (Arweave.net)'} query attempt...`);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.errors) {
+        throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+      }
+
+      console.log(`[GraphQL] ${isPrimary ? 'Goldsky' : 'Arweave.net'} query successful`);
+      return result;
+    } catch (error) {
+      console.warn(`[GraphQL] ${isPrimary ? 'Goldsky' : 'Arweave.net'} failed:`, error);
+
+      // If this was the last endpoint, throw the error
+      if (i === endpoints.length - 1) {
+        throw error;
+      }
+
+      // Otherwise, continue to next endpoint
+      console.log(`[GraphQL] Trying fallback endpoint...`);
+    }
+  }
+}
 
 // GraphQL response types
 interface GraphQLTag {
@@ -85,22 +138,11 @@ export async function queryUserPrompts(
   try {
     console.log('[GraphQL] Querying for wallet:', walletAddress);
 
-    const response = await fetch(GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables: { owner: walletAddress, cursor },
-      }),
+    const result: GraphQLTransactionsResponse = await executeGraphQLQuery(query, {
+      owner: walletAddress,
+      cursor
     });
 
-    if (!response.ok) {
-      throw new Error(`GraphQL query failed: ${response.statusText}`);
-    }
-
-    const result: GraphQLTransactionsResponse = await response.json();
     const { edges, pageInfo } = result.data.transactions;
 
     const txIds = edges.map(edge => edge.node.id);
@@ -199,22 +241,7 @@ export async function queryPromptsByTags(
   `;
 
   try {
-    const response = await fetch(GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables: { cursor },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`GraphQL query failed: ${response.statusText}`);
-    }
-
-    const result: GraphQLTransactionsResponse = await response.json();
+    const result: GraphQLTransactionsResponse = await executeGraphQLQuery(query, { cursor });
     const { edges, pageInfo } = result.data.transactions;
 
     const txIds = edges.map(edge => edge.node.id);
@@ -517,22 +544,7 @@ async function fetchTransactionTags(txId: string): Promise<GraphQLTag[]> {
   `;
 
   try {
-    const response = await fetch(GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables: { id: txId },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`GraphQL query failed: ${response.statusText}`);
-    }
-
-    const result = await response.json();
+    const result = await executeGraphQLQuery(query, { id: txId });
     return result.data?.transaction?.tags || [];
   } catch (error) {
     console.error(`[Fetch Tags] ${txId} - FAILED:`, error);

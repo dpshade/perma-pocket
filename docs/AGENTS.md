@@ -38,13 +38,22 @@ bunx vitest run src/**/*.edge.test.ts  # Only edge case tests
 
 ### Core Data Flow
 1. User connects ArConnect wallet → queries Arweave via GraphQL for all prompts
-2. GraphQL discovers all transactions with `Protocol: Pocket-Prompt-v2` + owner address
+2. GraphQL discovers all transactions with `Protocol: Pocket-Prompt-v3.1` + owner address
 3. Full prompts fetched from Arweave and cached in localStorage under `pktpmt:prompts`
 4. Profile metadata stored in localStorage for backward compatibility
 5. On edit, new version uploaded to Arweave → version history preserved
 6. FlexSearch index rebuilt on prompt load for client-side search
 
-**⚠️ GraphQL Indexing Delay:** After uploading a prompt, it may take 1-10 minutes for Arweave's GraphQL indexer to make it discoverable. During this time, the prompt is cached locally and accessible, but won't appear if you clear localStorage or use a different device.
+**GraphQL Query Strategy:**
+- **Primary:** Goldsky (https://arweave-search.goldsky.com/graphql) - faster indexing, better reliability
+- **Fallback:** Arweave.net (https://arweave.net/graphql) - automatic fallback if Goldsky fails
+- Goldsky typically indexes new transactions within seconds vs minutes for arweave.net
+- All queries automatically retry with fallback endpoint on failure
+
+**⚠️ GraphQL Indexing Delay:**
+- **Goldsky:** Usually 10-30 seconds for new prompts to become discoverable
+- **Arweave.net fallback:** May take 1-10 minutes
+- During indexing, prompts are cached locally and accessible, but won't sync across devices until indexed
 
 ### State Management (Zustand)
 - **useWallet** (`src/hooks/useWallet.ts`): Wallet connection state
@@ -72,26 +81,37 @@ Tags use case-insensitive AND logic (all selected tags must match). Archived pro
 ### Arweave Upload Tags
 All uploads include comprehensive tags for discoverability:
 - `App-Name: Pocket Prompt`
-- `Protocol: Pocket-Prompt-v3` (session-based encryption)
+- `App-Version: 3.1.0` (semantic versioning)
+- `Protocol: Pocket-Prompt-v3.1` (session-based encryption)
 - `Type: prompt`
 - `Prompt-Id: {uuid}`
 - `Tag: {tag}` (one per user tag)
 - `Encrypted: true|false`
+- `Archived: true|false`
 
 **⚠️ PROTOCOL VERSION HISTORY:**
-- **v1:** Per-transaction RSA encryption (deprecated, incompatible)
-- **v2:** Hybrid period - v2 tags but some used v1 encryption (incompatible)
-- **v3:** Session-based encryption (current)
+- **v1:** Per-transaction RSA encryption (**INCOMPATIBLE** - deprecated)
+- **v2:** Hybrid period - v2 tags but some used v1 encryption (**INCOMPATIBLE** - deprecated)
+- **v3.0:** Session-based encryption with incorrect key wrapping (**INCOMPATIBLE** - deprecated)
+- **v3.1:** Session-based encryption with proper AES-GCM key wrapping (**CURRENT**)
 
-GraphQL queries only search for v3 prompts. Old v1/v2 prompts are not backward compatible and will be ignored.
+GraphQL queries only search for v3.1 prompts. Old v1/v2/v3.0 prompts are not backward compatible and will be ignored.
 
 The `App-Name` and `Protocol` tags are used in GraphQL queries to discover a user's library.
 
-**Encryption Architecture (v3):**
+**Encryption Architecture (v3.1):**
 - First operation per session: User signs once to derive master encryption key via PBKDF2
+- Content encrypted with random AES-256-GCM key
+- AES key encrypted with master key (proper key wrapping with IV)
 - All subsequent operations: Use cached master key (zero additional signatures)
 - Session key cleared on wallet disconnect
 - Provides strong encryption without signature spam
+
+**Versioning Strategy:**
+- Uses **semantic versioning** (MAJOR.MINOR.PATCH)
+- Protocol breaking changes = MAJOR version bump
+- New features = MINOR version bump
+- Bug fixes = PATCH version bump
 
 See `src/lib/arweave.ts` for full tag structure and `src/lib/encryption.ts` for session-based encryption implementation.
 

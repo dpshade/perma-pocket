@@ -35,9 +35,9 @@ describe('Arweave Config Utilities', () => {
         expect.arrayContaining([
           { name: 'Content-Type', value: 'application/json' },
           { name: 'App-Name', value: 'Pocket Prompt' },
-          { name: 'App-Version', value: '2.0.0' },
+          { name: 'App-Version', value: '3.1.0' },
           { name: 'Type', value: 'prompt' },
-          { name: 'Protocol', value: 'Pocket-Prompt-v3' },
+          { name: 'Protocol', value: 'Pocket-Prompt-v3.1' },
           { name: 'Data-Protocol', value: 'Prompt' },
         ])
       );
@@ -48,7 +48,7 @@ describe('Arweave Config Utilities', () => {
       const protocolTag = tags.find(t => t.name === 'Protocol');
 
       expect(protocolTag).toBeDefined();
-      expect(protocolTag?.value).toBe('Pocket-Prompt-v3');
+      expect(protocolTag?.value).toBe('Pocket-Prompt-v3.1');
     });
 
     it('should have App-Version set to 2.0.0', () => {
@@ -56,7 +56,7 @@ describe('Arweave Config Utilities', () => {
       const versionTag = tags.find(t => t.name === 'App-Version');
 
       expect(versionTag).toBeDefined();
-      expect(versionTag?.value).toBe('2.0.0');
+      expect(versionTag?.value).toBe('3.1.0');
     });
   });
 
@@ -144,7 +144,7 @@ describe('Arweave Config Utilities', () => {
       // Check for static tags
       expect(tags).toEqual(
         expect.arrayContaining([
-          { name: 'Protocol', value: 'Pocket-Prompt-v3' },
+          { name: 'Protocol', value: 'Pocket-Prompt-v3.1' },
           { name: 'App-Name', value: 'Pocket Prompt' },
           { name: 'Content-Type', value: 'application/json' },
         ])
@@ -201,7 +201,7 @@ describe('Arweave Config Utilities', () => {
     it('should return v3 protocol version from config', () => {
       const version = getProtocolVersion();
 
-      expect(version).toBe('Pocket-Prompt-v3');
+      expect(version).toBe('Pocket-Prompt-v3.1');
     });
   });
 
@@ -209,7 +209,7 @@ describe('Arweave Config Utilities', () => {
     it('should extract query filters from config', () => {
       const filters = getQueryFilters();
 
-      expect(filters.protocol).toBe('Pocket-Prompt-v3');
+      expect(filters.protocol).toBe('Pocket-Prompt-v3.1');
       expect(filters.appName).toBe('Pocket Prompt');
     });
 

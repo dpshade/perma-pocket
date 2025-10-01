@@ -23,7 +23,7 @@ describe('Arweave Config Integration', () => {
 
       const protocolTag = tags.find(t => t.name === 'Protocol');
       expect(protocolTag).toBeDefined();
-      expect(protocolTag?.value).toBe('Pocket-Prompt-v3');
+      expect(protocolTag?.value).toBe('Pocket-Prompt-v3.1');
 
       const encryptedTag = tags.find(t => t.name === 'Encrypted');
       expect(encryptedTag).toBeDefined();
@@ -35,7 +35,7 @@ describe('Arweave Config Integration', () => {
 
       const protocolTag = tags.find(t => t.name === 'Protocol');
       expect(protocolTag).toBeDefined();
-      expect(protocolTag?.value).toBe('Pocket-Prompt-v3');
+      expect(protocolTag?.value).toBe('Pocket-Prompt-v3.1');
 
       const encryptedTag = tags.find(t => t.name === 'Encrypted');
       expect(encryptedTag).toBeDefined();
@@ -81,7 +81,7 @@ describe('Arweave Config Integration', () => {
       const versionTag = tags.find(t => t.name === 'App-Version');
 
       expect(versionTag).toBeDefined();
-      expect(versionTag?.value).toBe('2.0.0');
+      expect(versionTag?.value).toBe('3.1.0');
     });
   });
 
@@ -89,7 +89,7 @@ describe('Arweave Config Integration', () => {
     it('should extract Protocol v3 from config', () => {
       const filters = getQueryFilters();
 
-      expect(filters.protocol).toBe('Pocket-Prompt-v3');
+      expect(filters.protocol).toBe('Pocket-Prompt-v3.1');
     });
 
     it('should extract App-Name from config', () => {
@@ -105,7 +105,7 @@ describe('Arweave Config Integration', () => {
       const uploadProtocol = uploadTags.find(t => t.name === 'Protocol')?.value;
 
       expect(uploadProtocol).toBe(queryFilters.protocol);
-      expect(queryFilters.protocol).toBe('Pocket-Prompt-v3');
+      expect(queryFilters.protocol).toBe('Pocket-Prompt-v3.1');
     });
   });
 
@@ -209,8 +209,8 @@ describe('Arweave Config Integration', () => {
 
       const uploadProtocol = uploadTags.find(t => t.name === 'Protocol')?.value;
 
-      expect(uploadProtocol).toBe('Pocket-Prompt-v3');
-      expect(queryFilters.protocol).toBe('Pocket-Prompt-v3');
+      expect(uploadProtocol).toBe('Pocket-Prompt-v3.1');
+      expect(queryFilters.protocol).toBe('Pocket-Prompt-v3.1');
     });
   });
 });

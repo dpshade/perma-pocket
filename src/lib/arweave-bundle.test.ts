@@ -104,8 +104,9 @@ describe('arweave-bundle', () => {
       const bundleTxIds = await queryUserBundles(mockWalletAddress);
 
       expect(bundleTxIds).toEqual(['bundle-1', 'bundle-2']);
+      // Should use Goldsky as primary endpoint
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://arweave.net/graphql',
+        'https://arweave-search.goldsky.com/graphql',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -113,7 +114,7 @@ describe('arweave-bundle', () => {
       );
     });
 
-    it('should filter by Protocol: Pocket-Prompt-v3', async () => {
+    it('should filter by Protocol: Pocket-Prompt-v3.1', async () => {
       const mockResponse = {
         data: { transactions: { edges: [] } },
       };
@@ -129,7 +130,7 @@ describe('arweave-bundle', () => {
       const requestBody = JSON.parse(fetchCall[1].body);
 
       expect(requestBody.query).toContain('Protocol');
-      expect(requestBody.query).toContain('Pocket-Prompt-v3');
+      expect(requestBody.query).toContain('Pocket-Prompt-v3.1');
     });
 
     it('should filter by Type: prompt-bundle', async () => {

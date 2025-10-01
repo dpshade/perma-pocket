@@ -14,8 +14,8 @@
       },
       {
         "name": "App-Version",
-        "value": "2.0.0",
-        "description": "Application version"
+        "value": "3.1.0",
+        "description": "Application version (semantic versioning: MAJOR.MINOR.PATCH)"
       },
       {
         "name": "Type",
@@ -24,8 +24,8 @@
       },
       {
         "name": "Protocol",
-        "value": "Pocket-Prompt-v3",
-        "description": "Protocol identifier for discoverability (v3 uses session-based encryption)"
+        "value": "Pocket-Prompt-v3.1",
+        "description": "Protocol identifier for discoverability (v3.1 = session-based encryption with proper key wrapping)"
       },
       {
         "name": "Data-Protocol",
@@ -98,8 +98,8 @@
       },
       {
         "name": "Protocol",
-        "values": ["Pocket-Prompt-v3"],
-        "description": "Filter by protocol version (v3 = session-based encryption)"
+        "values": ["Pocket-Prompt-v3.1"],
+        "description": "Filter by protocol version (v3.1 = session-based encryption with proper key wrapping)"
       }
     ],
     "owner": {
