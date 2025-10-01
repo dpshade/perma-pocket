@@ -1,13 +1,15 @@
 /**
  * Encryption utilities for Pocket Prompt using Arweave wallet + password
  *
- * Approach: Wallet + Password Hybrid Encryption (v3.3)
+ * Approach: Wallet + Password Hybrid Encryption (v3.3+)
  * 1. User provides password once per session
  * 2. Derive master AES-256 key from: wallet address + password
  * 3. Use this key to encrypt/decrypt all prompt content
  * 4. Deterministic: same wallet + same password = same key (works across devices)
  * 5. Secure: password is secret, PBKDF2 with 250k iterations
  */
+
+import { getProtocolVersion } from './arweave-config';
 
 export interface EncryptedData {
   encryptedContent: string;
@@ -125,8 +127,10 @@ async function getOrCreateMasterKey(password: string): Promise<CryptoKey> {
         ['deriveKey']
       );
 
-      // Use app-specific salt
-      const salt = new TextEncoder().encode('pocket-prompt-v3.3');
+      // Use app-specific salt based on current protocol version
+      // This ensures encryption is tied to the protocol version
+      const protocolVersion = getProtocolVersion().toLowerCase();
+      const salt = new TextEncoder().encode(protocolVersion);
 
       // Derive master AES-256 key using PBKDF2 with 250,000 iterations
       const masterKey = await crypto.subtle.deriveKey(
