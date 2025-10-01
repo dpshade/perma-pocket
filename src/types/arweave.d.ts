@@ -1,31 +1,24 @@
 /**
  * TypeScript declarations for ArConnect wallet
+ * Augments the arconnect package types with the new signMessage API
  */
-
-interface ArweaveWallet {
-  connect(permissions: string[]): Promise<void>;
-  disconnect(): Promise<void>;
-  getActiveAddress(): Promise<string>;
-  getPermissions(): Promise<string[]>;
-  encrypt(
-    data: Uint8Array,
-    options: {
-      algorithm: string;
-      hash: string;
-    }
-  ): Promise<Uint8Array | ArrayBuffer>;
-  decrypt(
-    data: Uint8Array,
-    options: {
-      algorithm: string;
-      hash: string;
-    }
-  ): Promise<Uint8Array | ArrayBuffer>;
-}
 
 declare global {
   interface Window {
-    arweaveWallet?: ArweaveWallet;
+    arweaveWallet: {
+      /**
+       * Sign a message using the wallet (replaces deprecated signature() method)
+       * @param data Message data to sign
+       * @param options Hash algorithm options
+       * @returns Promise of the signature
+       */
+      signMessage(
+        data: Uint8Array | ArrayBuffer,
+        options?: {
+          hashAlgorithm?: 'SHA-256' | 'SHA-384' | 'SHA-512';
+        }
+      ): Promise<Uint8Array>;
+    };
   }
 }
 

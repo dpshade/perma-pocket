@@ -106,9 +106,8 @@ async function getOrCreateMasterKey(): Promise<CryptoKey> {
       );
 
       // Get wallet signature (this is the ONLY signature needed)
-      const signature = await window.arweaveWallet.signature(message, {
-        name: 'RSA-PSS',
-        saltLength: 32,
+      const signature = await window.arweaveWallet.signMessage(message, {
+        hashAlgorithm: 'SHA-256',
       });
 
       // Convert signature to Uint8Array if needed

@@ -8,7 +8,7 @@ import { encryptContent, decryptContent, clearEncryptionCache } from './encrypti
 
 // Mock ArConnect wallet
 const mockWallet = {
-  signature: async (data: Uint8Array) => {
+  signMessage: async (data: Uint8Array) => {
     // Simulate signing with a deterministic "signature"
     const signatureBytes = new Uint8Array(256);
     for (let i = 0; i < 256; i++) {
@@ -140,9 +140,9 @@ describe('Encryption Validation - Triple Check', () => {
     let signatureCount = 0;
     const trackingWallet = {
       ...mockWallet,
-      signature: async (data: Uint8Array) => {
+      signMessage: async (data: Uint8Array) => {
         signatureCount++;
-        return mockWallet.signature(data);
+        return mockWallet.signMessage(data);
       },
     };
     (window as any).arweaveWallet = trackingWallet;

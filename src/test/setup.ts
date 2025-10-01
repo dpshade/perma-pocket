@@ -17,8 +17,8 @@ global.window = global.window || {};
   disconnect: vi.fn(),
   getActiveAddress: vi.fn().mockResolvedValue('mock-wallet-address-123'),
   getPermissions: vi.fn(),
-  // Signature method for session key derivation
-  signature: vi.fn().mockImplementation(async (data: Uint8Array) => {
+  // signMessage method for session key derivation (replaces deprecated signature)
+  signMessage: vi.fn().mockImplementation(async (data: Uint8Array) => {
     // Mock signature: Create a deterministic 256-byte signature from input
     const signature = new Uint8Array(256);
     for (let i = 0; i < 256; i++) {
