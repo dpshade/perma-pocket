@@ -27,14 +27,6 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   const formatDateTime = (timestamp: number) => {
     const date = new Date(timestamp);
     const month = String(date.getMonth() + 1).padStart(2, '0');

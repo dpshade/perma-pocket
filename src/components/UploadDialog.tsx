@@ -44,14 +44,25 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
     const calculateSizesAndDuplicates = async () => {
       const sizeMap = new Map<string, number>();
 
-      // Extract prompts from preview
+      // Extract prompts from preview and convert ImportedPrompt to Prompt
       const importedPrompts: Prompt[] = [];
       for (const result of preview) {
         if (result.success && result.prompt) {
           // Estimate size (fast, doesn't require wallet connection)
           const estimatedSize = estimatePromptUploadSize(result.prompt);
           sizeMap.set(result.prompt.id, estimatedSize);
-          importedPrompts.push(result.prompt);
+
+          // Convert ImportedPrompt to Prompt for duplicate detection
+          const fullPrompt: Prompt = {
+            ...result.prompt,
+            currentTxId: '',
+            versions: [],
+            isArchived: false,
+            isSynced: false,
+            createdAt: result.prompt.createdAt || Date.now(),
+            updatedAt: result.prompt.updatedAt || Date.now(),
+          };
+          importedPrompts.push(fullPrompt);
         }
       }
 

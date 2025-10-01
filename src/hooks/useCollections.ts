@@ -37,7 +37,7 @@ export function useCollections(
   walletAddress: string | null,
   arweaveWallet: any,
   onUploadStart?: (txId: string, count: number) => void,
-  onUploadComplete?: (txId: string) => void,
+  _onUploadComplete?: (txId: string) => void,
   onUploadError?: (error: string) => void
 ): UseCollectionsReturn {
   const [state, setState] = useState<CollectionsState>({

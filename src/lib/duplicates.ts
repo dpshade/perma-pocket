@@ -17,7 +17,6 @@ function calculateSimilarity(str1: string, str2: string): number {
 
   // Simple Levenshtein distance ratio
   const longer = s1.length > s2.length ? s1 : s2;
-  const shorter = s1.length > s2.length ? s2 : s1;
 
   if (longer.length === 0) return 1.0;
 
@@ -74,7 +73,7 @@ export function findDuplicates(prompts: Prompt[], threshold = 0.85): DuplicateGr
   });
 
   // Add exact title matches
-  titleMap.forEach((prompts, title) => {
+  titleMap.forEach((prompts) => {
     if (prompts.length > 1) {
       groups.push({
         title: prompts[0].title,

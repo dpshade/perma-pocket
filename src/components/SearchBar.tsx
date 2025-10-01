@@ -1,4 +1,4 @@
-import { Search, X, Filter, Bookmark, Archive, LayoutGrid, List, Copy } from 'lucide-react';
+import { Search, X, Filter, Bookmark, Archive, LayoutGrid, List } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
