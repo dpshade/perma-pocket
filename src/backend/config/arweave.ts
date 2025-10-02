@@ -23,8 +23,9 @@ export function getStaticTags(): ArweaveTag[] {
 
 /**
  * Get dynamic tags for a specific prompt
+ * @param incrementVersion - If true, increment version for content updates. If false, keep same version for metadata-only changes (archive/restore)
  */
-export function getDynamicTags(prompt: Prompt, isEncrypted: boolean): ArweaveTag[] {
+export function getDynamicTags(prompt: Prompt, isEncrypted: boolean, incrementVersion: boolean = true): ArweaveTag[] {
   const tags: ArweaveTag[] = [];
 
   // Process configured dynamic tags
@@ -41,9 +42,13 @@ export function getDynamicTags(prompt: Prompt, isEncrypted: boolean): ArweaveTag
       tags.push({ name: 'Updated-At', value: prompt.updatedAt.toString() });
     } else if (tagConfig.name === 'Version') {
       // Calculate version - handle empty versions array
-      const version = prompt.versions && prompt.versions.length > 0
+      // For new prompts (empty versions), use version 1
+      // For content updates (incrementVersion=true), increment from the highest existing version
+      // For metadata-only changes (incrementVersion=false, e.g., archive/restore), keep the current version
+      const currentVersion = prompt.versions && prompt.versions.length > 0
         ? Math.max(...prompt.versions.map(v => v.version || 1))
-        : 1;
+        : 0;
+      const version = incrementVersion ? currentVersion + 1 : Math.max(currentVersion, 1);
       tags.push({ name: 'Version', value: version.toString() });
     } else if (tagConfig.name === 'Encrypted') {
       tags.push({ name: 'Encrypted', value: isEncrypted ? 'true' : 'false' });
@@ -64,11 +69,12 @@ export function getArrayTags(prompt: Prompt): ArweaveTag[] {
 
 /**
  * Get all upload tags for a prompt
+ * @param incrementVersion - If true, increment version for content updates. If false, keep same version for metadata-only changes
  */
-export function getUploadTags(prompt: Prompt, isEncrypted: boolean): ArweaveTag[] {
+export function getUploadTags(prompt: Prompt, isEncrypted: boolean, incrementVersion: boolean = true): ArweaveTag[] {
   return [
     ...getStaticTags(),
-    ...getDynamicTags(prompt, isEncrypted),
+    ...getDynamicTags(prompt, isEncrypted, incrementVersion),
     ...getArrayTags(prompt),
   ];
 }

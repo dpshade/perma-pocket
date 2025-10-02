@@ -51,7 +51,7 @@ export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchi
 
   return (
     <Card
-      className={`group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-200 active:scale-[0.98] h-[240px] flex flex-col ${copied ? 'ring-2 ring-primary' : ''} ${isSelected ? 'ring-2 ring-primary shadow-lg' : ''}`}
+      className={`group cursor-pointer md:hover:shadow-lg md:hover:-translate-y-1 transition-all duration-200 active:scale-[0.98] h-[240px] flex flex-col ${copied ? 'ring-2 ring-primary' : ''} ${isSelected ? 'ring-2 ring-primary shadow-lg' : ''}`}
       onClick={handleCopy}
       title="Click to copy"
     >
@@ -116,7 +116,7 @@ export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchi
                   e.stopPropagation();
                   onView();
                 }}
-                className="hover:scale-110 active:scale-90 transition-transform h-7"
+                className="md:hover:scale-110 active:scale-90 transition-transform h-8 w-8 md:h-7 md:w-auto"
               >
                 <ExternalLink className="h-3 w-3" />
               </Button>
@@ -137,7 +137,7 @@ export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchi
                       e.stopPropagation();
                       onEdit();
                     }}
-                    className="hover:scale-110 active:scale-90 transition-transform h-7"
+                    className="md:hover:scale-110 active:scale-90 transition-transform h-8 w-8 md:h-7 md:w-auto"
                   >
                     <Edit className="h-3 w-3" />
                   </Button>
@@ -156,7 +156,7 @@ export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchi
                       e.stopPropagation();
                       onArchive();
                     }}
-                    className="hover:scale-110 active:scale-90 transition-transform h-7"
+                    className="md:hover:scale-110 active:scale-90 transition-transform h-8 w-8 md:h-7 md:w-auto"
                   >
                     <Archive className="h-3 w-3" />
                   </Button>
@@ -176,7 +176,7 @@ export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchi
                     e.stopPropagation();
                     onRestore();
                   }}
-                  className="hover:scale-110 active:scale-90 transition-transform animate-wiggle h-7"
+                  className="md:hover:scale-110 active:scale-90 transition-transform animate-wiggle h-8 w-8 md:h-7 md:w-auto"
                 >
                   <ArchiveRestore className="h-3 w-3" />
                 </Button>
@@ -193,7 +193,7 @@ export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchi
                 size="sm"
                 variant="outline"
                 onClick={(e) => e.stopPropagation()}
-                className="hover:scale-110 active:scale-90 transition-transform h-7 ml-auto"
+                className="md:hover:scale-110 active:scale-90 transition-transform h-8 w-8 md:h-7 md:w-auto ml-auto"
               >
                 <Info className="h-3 w-3" />
               </Button>

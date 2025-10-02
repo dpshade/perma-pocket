@@ -122,9 +122,9 @@ export function PromptDialog({
                   </p>
                 )}
               </div>
-              {prompt.versions.length > 1 && (
-                <Badge variant="secondary">
-                  v{prompt.versions.length}
+              {prompt.versions.length > 0 && (
+                <Badge variant="secondary" className="mr-8">
+                  v{prompt.versions[prompt.versions.length - 1]?.version || prompt.versions.length}
                 </Badge>
               )}
             </div>
@@ -189,13 +189,14 @@ export function PromptDialog({
             )}
           </Button>
 
-          {prompt.versions.length > 1 && (
+          {prompt.versions.length > 0 && (
             <Button
               variant="outline"
               onClick={onShowVersions}
+              title={prompt.versions.length === 1 ? 'View version details' : 'View version history'}
             >
               <History className="mr-2 h-4 w-4" />
-              Version History
+              {prompt.versions.length === 1 ? 'Version Info' : 'Version History'}
             </Button>
           )}
 

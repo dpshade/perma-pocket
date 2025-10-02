@@ -433,7 +433,8 @@ export async function updatePromptArchiveStatus(
     const data = JSON.stringify(uploadData, null, 2);
 
     // Build comprehensive tags from config (includes Archived tag)
-    const tags = getUploadTags(updatedPrompt, !isPublic);
+    // Don't increment version for archive/restore - these are metadata-only changes
+    const tags = getUploadTags(updatedPrompt, !isPublic, false);
 
     console.log('[Archive Update] Uploading prompt with archive status:', {
       'Prompt-Id': tags.find(t => t.name === 'Prompt-Id')?.value,
@@ -665,18 +666,20 @@ export async function fetchPrompt(txId: string, password?: string, skipDecryptio
 
     // Read version info from tags
     const versionTag = tags.find(tag => tag.name === 'Version');
-    const version = versionTag ? parseInt(versionTag.value, 10) : 1;
+    const tagVersion = versionTag ? parseInt(versionTag.value, 10) : 1;
 
     const prompt: Prompt = {
       ...promptData,
       content,
       currentTxId: txId, // Ensure we have the txId we just fetched
-      // Initialize versions array if not present
-      versions: promptData.versions || [{
-        txId,
-        version,
-        timestamp: promptData.updatedAt || promptData.createdAt || Date.now(),
-      }],
+      // Initialize versions array if not present, or ensure it has at least one version
+      versions: promptData.versions && promptData.versions.length > 0
+        ? promptData.versions
+        : [{
+            txId,
+            version: tagVersion,
+            timestamp: promptData.updatedAt || promptData.createdAt || Date.now(),
+          }],
       isSynced: true, // If we fetched it from Arweave, it's synced
       isArchived, // Override with tag value from Arweave
     };

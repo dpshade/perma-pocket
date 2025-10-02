@@ -9,7 +9,10 @@
       "Bash(bunx tsc:*)",
       "Bash(bun add:*)",
       "Bash(git checkout:*)",
-      "Bash(bun test:*)"
+      "Bash(bun test:*)",
+      "WebFetch(domain:qnczm2vsjbf6f5xg3dcftlsl2paawqldxckfkierg2ccs6jnhg7a.arweave.net)",
+      "Bash(node:*)",
+      "Bash(brew install:*)"
     ],
     "deny": [],
     "ask": []

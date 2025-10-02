@@ -8,12 +8,19 @@ Pocket Prompt is a fully client-side, web-based application for managing and sto
 
 ### Core Functionality
 - **🔐 Wallet Integration**: Connect with ArConnect wallet for decentralized identity
+- **🔒 Encrypted by Default**: All prompts are encrypted with your wallet's public key—only you can decrypt them
 - **📤 Free Arweave Storage**: Upload prompts under 100 KiB for free via Turbo SDK
 - **🔍 Advanced Search**: Full-text search powered by FlexSearch
 - **🏷️ Tag Management**: Organize prompts with tags and filter by multiple tags
 - **📋 One-Click Copy**: Instantly copy prompts to clipboard
 - **✏️ Edit & Version Control**: Create new versions on edit, navigate version history
 - **🗄️ Archive System**: Soft delete with ability to restore archived prompts
+
+### Privacy & Security
+- **Private by Default**: All prompts are automatically encrypted before uploading to Arweave
+- **Wallet-Based Encryption**: Content is encrypted using your Arweave wallet's public key
+- **Optional Public Prompts**: Add the `public` tag to share prompts publicly
+- **⚠️ Permanent Storage Warning**: Once a prompt is made public on Arweave, it remains publicly accessible forever—even if you later make it private. Making it private only encrypts future uploads.
 
 ### Technical Features
 - **💾 Local Caching**: localStorage-based caching for fast loading

@@ -292,6 +292,10 @@ export const usePrompts = create<PromptsState>((set, get) => ({
         }
 
         // Update with new txId and version entry
+        // Archive doesn't increment version - metadata-only change
+        const currentVersion = prompt.versions.length > 0
+          ? Math.max(...prompt.versions.map(v => v.version || 1))
+          : 1;
         const updatedPrompt: Prompt = {
           ...prompt,
           isArchived: true,
@@ -300,7 +304,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
             ...prompt.versions,
             {
               txId: result.id,
-              version: prompt.versions.length, // Same version number (not incremented)
+              version: currentVersion, // Same version number (not incremented)
               timestamp: Date.now(),
               changeNote: 'Archived',
             },
@@ -362,6 +366,10 @@ export const usePrompts = create<PromptsState>((set, get) => ({
         }
 
         // Update with new txId and version entry
+        // Restore doesn't increment version - metadata-only change
+        const currentVersion = prompt.versions.length > 0
+          ? Math.max(...prompt.versions.map(v => v.version || 1))
+          : 1;
         const updatedPrompt: Prompt = {
           ...prompt,
           isArchived: false,
@@ -370,7 +378,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
             ...prompt.versions,
             {
               txId: result.id,
-              version: prompt.versions.length, // Same version number (not incremented)
+              version: currentVersion, // Same version number (not incremented)
               timestamp: Date.now(),
               changeNote: 'Restored from archive',
             },

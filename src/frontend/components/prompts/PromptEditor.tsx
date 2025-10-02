@@ -111,6 +111,20 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
   const handleAddTag = (tagToAdd?: string) => {
     const tag = tagToAdd || tagInput.trim();
     if (tag && !tags.includes(tag)) {
+      // Check if adding "public" tag - show warning
+      if (tag.toLowerCase() === 'public') {
+        const confirmed = window.confirm(
+          '⚠️ WARNING: Making this prompt public will store it as plain text on Arweave PERMANENTLY.\n\n' +
+          '• Anyone can read it forever\n' +
+          '• It cannot be deleted from Arweave\n' +
+          '• Making it private later will NOT remove the public version\n\n' +
+          'Are you sure you want to make this prompt public?'
+        );
+        if (!confirmed) {
+          setTagInput('');
+          return;
+        }
+      }
       setTags([...tags, tag]);
       setTagInput('');
     }
@@ -130,11 +144,20 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
   const handleTogglePublic = () => {
     const hasPublicTag = tags.some(tag => tag.toLowerCase() === 'public');
     if (hasPublicTag) {
-      // Remove "public" tag
+      // Remove "public" tag - no confirmation needed
       setTags(tags.filter(tag => tag.toLowerCase() !== 'public'));
     } else {
-      // Add "public" tag
-      setTags([...tags, 'public']);
+      // Add "public" tag - show warning confirmation
+      const confirmed = window.confirm(
+        '⚠️ WARNING: Making this prompt public will store it as plain text on Arweave PERMANENTLY.\n\n' +
+        '• Anyone can read it forever\n' +
+        '• It cannot be deleted from Arweave\n' +
+        '• Making it private later will NOT remove the public version\n\n' +
+        'Are you sure you want to make this prompt public?'
+      );
+      if (confirmed) {
+        setTags([...tags, 'public']);
+      }
     }
   };
 
@@ -288,7 +311,7 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
               <div className={`mt-2 rounded border px-2 py-1.5 text-xs flex-shrink-0 ${
                 willBeEncrypted
                   ? 'border-primary/30 bg-primary/5 text-muted-foreground'
-                  : 'border-muted-foreground/30 bg-muted/30 text-muted-foreground'
+                  : 'border-yellow-600/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300'
               }`}>
                 {willBeEncrypted ? (
                   <>
@@ -296,7 +319,7 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
                   </>
                 ) : (
                   <>
-                    This prompt has the <code className="px-1 py-0.5 bg-muted rounded text-[10px]">public</code> tag and will be stored as plain text on Arweave. Anyone can read it. Remove the tag to encrypt it.
+                    <strong>⚠ Warning:</strong> This prompt will be stored as plain text on Arweave and will be <strong>permanently public</strong>. Anyone can read it forever. Making it private later will only encrypt future uploads—the public version will remain on Arweave permanently.
                   </>
                 )}
               </div>

@@ -155,15 +155,25 @@ Before:                After:
 ```
 ✅ Status updates automatically
 
-**Step 2: Banner changes**
+**Step 2: Confirmation dialog appears**
 ```
-ℹ️ This prompt will be publicly readable
+⚠️ WARNING: Making this prompt public will store it as
+plain text on Arweave PERMANENTLY.
 
-This prompt has the `public` tag and will be
-stored as plain text on Arweave. Anyone can
-read it. Remove the tag to encrypt it.
+• Anyone can read it forever
+• It cannot be deleted from Arweave
+• Making it private later will NOT remove the public version
+
+Are you sure you want to make this prompt public?
 ```
-✅ Clear warning about public visibility
+✅ User must confirm before making public
+
+**Step 3: Banner changes (after confirmation)**
+```
+⚠ Warning: This prompt will be stored as plain text on
+Arweave and will be permanently public...
+```
+✅ Clear warning about PERMANENT public visibility
 
 **Step 3: Tags update**
 ```
@@ -242,11 +252,12 @@ Banner: Blue border + light blue bg
 Icon: Shield (blue)
 ```
 
-#### Public State
+#### Public State (Warning)
 ```css
 Badge: Gray background (muted)
-Banner: Gray border + light gray bg
-Icon: Info circle (gray)
+Banner: Yellow border + light yellow bg (⚠️ warning color)
+Icon: Warning triangle (yellow)
+Text: Yellow-700 (dark) / Yellow-300 (light mode)
 ```
 
 ### Icons Used
@@ -312,15 +323,17 @@ public key. To make a prompt public, add the `public` tag.
 
 ### Public Warning Message
 ```
-This prompt has the `public` tag and will be stored as
-plain text on Arweave. Anyone can read it. Remove the
-tag to encrypt it.
+⚠ Warning: This prompt will be stored as plain text on Arweave
+and will be permanently public. Anyone can read it forever. Making
+it private later will only encrypt future uploads—the public
+version will remain on Arweave permanently.
 ```
 
 **Key Points:**
-- ⚠️ Warns about public visibility
-- ⚠️ Clarifies data is plain text
-- ✅ Shows how to encrypt (remove tag)
+- ⚠️ Warns about PERMANENT public visibility
+- ⚠️ Clarifies data is plain text on blockchain forever
+- ⚠️ Explains that making it private later won't delete the public version
+- ✅ States that future uploads will be encrypted if made private
 
 ---
 
@@ -336,10 +349,12 @@ tag to encrypt it.
 
 #### Test 2: Toggle to Public
 1. Click "Make Public" button
-2. ✅ Badge changes to: `[🌐 Public]`
-3. ✅ Banner changes to gray warning
-4. ✅ "public" tag added and highlighted
-5. ✅ Toggle button: "Make Private"
+2. ✅ Confirmation dialog appears with permanent storage warning
+3. Click "OK" to confirm
+4. ✅ Badge changes to: `[🌐 Public]`
+5. ✅ Banner changes to yellow warning (permanent storage notice)
+6. ✅ "public" tag added and highlighted
+7. ✅ Toggle button: "Make Private"
 
 #### Test 3: Toggle Back to Encrypted
 1. Click "Make Private" button
@@ -351,7 +366,18 @@ tag to encrypt it.
 #### Test 4: Manual Tag Addition
 1. Type "public" in tag input
 2. Press Enter or click "Add"
-3. ✅ All UI updates (same as toggle)
+3. ✅ Confirmation dialog appears with permanent storage warning
+4. Click "OK" to confirm
+5. ✅ All UI updates (same as toggle)
+
+#### Test 4b: Cancel Public Tag Addition
+1. Type "public" in tag input
+2. Press Enter or click "Add"
+3. Confirmation dialog appears
+4. Click "Cancel"
+5. ✅ Tag input is cleared
+6. ✅ "public" tag is NOT added
+7. ✅ Status remains `[🔒 Encrypted]`
 
 #### Test 5: Manual Tag Removal
 1. Add "public" tag (any method)
@@ -444,10 +470,45 @@ const handleTogglePublic = () => {
 **A:** ✅ Banner immediately changes to warning: "This prompt will be publicly readable... Anyone can read it."
 
 ### Q: "Can I switch between public and private?"
-**A:** ✅ Toggle button allows instant switching. Banner updates to show new state.
+**A:** ✅ You can make a private prompt public, or a public prompt private. However, once a prompt is made public on Arweave, that version remains publicly accessible forever. Making it private only encrypts future uploads.
 
 ### Q: "I typed 'PUBLIC' in caps, will it work?"
 **A:** ✅ Yes! Case-insensitive detection. UI updates regardless of capitalization.
+
+---
+
+## Safety Features
+
+### Confirmation Dialog for Public Prompts
+
+To prevent accidental public exposure of sensitive information, a confirmation dialog appears whenever a user attempts to make a prompt public:
+
+**Triggers:**
+- Clicking "Make Public" toggle button
+- Manually adding "public" tag via tag input
+
+**Dialog Content:**
+```
+⚠️ WARNING: Making this prompt public will store it as
+plain text on Arweave PERMANENTLY.
+
+• Anyone can read it forever
+• It cannot be deleted from Arweave
+• Making it private later will NOT remove the public version
+
+Are you sure you want to make this prompt public?
+```
+
+**User Actions:**
+- **Cancel**: No changes made, prompt remains encrypted
+- **OK**: "public" tag is added, prompt becomes public
+
+**No Confirmation Required:**
+- Removing "public" tag (making private)
+- Editing tags other than "public"
+- Any other tag operations
+
+This prevents accidental public exposure while allowing intentional sharing with explicit consent.
 
 ---
 

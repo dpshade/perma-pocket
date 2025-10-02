@@ -12,6 +12,12 @@ interface VersionHistoryProps {
   onOpenChange: (open: boolean) => void;
   prompt: Prompt | null;
   onRestoreVersion: (version: PromptVersion) => void;
+  password?: string;
+}
+
+interface VersionData {
+  prompt: Prompt;
+  previousPrompt?: Prompt;
 }
 
 export function VersionHistory({
@@ -19,30 +25,49 @@ export function VersionHistory({
   onOpenChange,
   prompt,
   onRestoreVersion,
+  password,
 }: VersionHistoryProps) {
   const [selectedVersionTxId, setSelectedVersionTxId] = useState<string | null>(null);
-  const [selectedVersionContent, setSelectedVersionContent] = useState<string | null>(null);
+  const [selectedVersionData, setSelectedVersionData] = useState<VersionData | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!prompt) return null;
 
-  const handleViewVersion = async (version: PromptVersion) => {
+  const handleViewVersion = async (version: PromptVersion, index: number) => {
     // Toggle off if clicking the same version
     if (selectedVersionTxId === version.txId) {
       setSelectedVersionTxId(null);
-      setSelectedVersionContent(null);
+      setSelectedVersionData(null);
       return;
     }
 
     setLoading(true);
     try {
-      const versionPrompt = await fetchPrompt(version.txId);
-      if (versionPrompt) {
+      // Fetch current version
+      const versionPrompt = await fetchPrompt(version.txId, password);
+
+      if (!versionPrompt) {
         setSelectedVersionTxId(version.txId);
-        setSelectedVersionContent(typeof versionPrompt.content === 'string' ? versionPrompt.content : 'Encrypted content');
+        setSelectedVersionData(null);
+        return;
       }
+
+      // Fetch previous version for comparison (if not first version)
+      let previousPrompt: Prompt | undefined;
+      if (index > 0) {
+        const prevVersion = prompt.versions[index - 1];
+        previousPrompt = await fetchPrompt(prevVersion.txId, password) || undefined;
+      }
+
+      setSelectedVersionTxId(version.txId);
+      setSelectedVersionData({
+        prompt: versionPrompt,
+        previousPrompt,
+      });
     } catch (error) {
       console.error('Failed to load version:', error);
+      setSelectedVersionTxId(version.txId);
+      setSelectedVersionData(null);
     } finally {
       setLoading(false);
     }
@@ -56,6 +81,34 @@ export function VersionHistory({
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  // Helper to detect what changed
+  const getChanges = (current: Prompt, previous?: Prompt) => {
+    if (!previous) {
+      return { type: 'initial' as const };
+    }
+
+    const changes: string[] = [];
+    if (current.title !== previous.title) changes.push('title');
+    if (current.description !== previous.description) changes.push('description');
+    if (current.content !== previous.content) changes.push('content');
+
+    // Compare tags
+    const currentTags = [...current.tags].sort().join(',');
+    const prevTags = [...previous.tags].sort().join(',');
+    if (currentTags !== prevTags) changes.push('tags');
+
+    if (current.isArchived !== previous.isArchived) {
+      changes.push(current.isArchived ? 'archived' : 'unarchived');
+    }
+
+    return {
+      type: 'update' as const,
+      changes,
+      contentChanged: changes.includes('content'),
+      metadataOnly: changes.length > 0 && !changes.includes('content'),
+    };
   };
 
   return (
@@ -101,11 +154,11 @@ export function VersionHistory({
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleViewVersion(version)}
+                            onClick={() => handleViewVersion(version, index)}
                             disabled={loading}
                           >
                             <Eye className="mr-1 h-3 w-3" />
-                            View
+                            {index === 0 ? 'View' : 'View Changes'}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -153,12 +206,115 @@ export function VersionHistory({
                   </div>
                 </div>
 
-                {/* Show version content if selected */}
-                {selectedVersionTxId === version.txId && selectedVersionContent && (
-                  <div className="mt-3 rounded-md border bg-muted/50 p-3">
-                    <pre className="whitespace-pre-wrap font-mono text-xs max-h-40 overflow-y-auto">
-                      {selectedVersionContent}
-                    </pre>
+                {/* Show version changes if selected */}
+                {selectedVersionTxId === version.txId && selectedVersionData && (
+                  <div className="mt-3 space-y-3">
+                    {(() => {
+                      const { prompt: currentVersion, previousPrompt } = selectedVersionData;
+                      const changes = getChanges(currentVersion, previousPrompt);
+
+                      if (typeof currentVersion.content !== 'string') {
+                        return (
+                          <div className="rounded-md border border-yellow-600/30 bg-yellow-500/10 p-3 text-sm text-yellow-700 dark:text-yellow-300">
+                            ⚠ Failed to decrypt this version
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <>
+                          {/* Metadata Changes */}
+                          {changes.type === 'update' && changes.changes.length > 0 && (
+                            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                              <div className="text-xs font-semibold text-muted-foreground">
+                                Changes in this version:
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {changes.changes.map(change => (
+                                  <Badge key={change} variant="secondary" className="text-xs">
+                                    {change}
+                                  </Badge>
+                                ))}
+                              </div>
+
+                              {/* Title change */}
+                              {changes.changes.includes('title') && previousPrompt && (
+                                <div className="text-xs space-y-1">
+                                  <div className="text-muted-foreground">Title:</div>
+                                  <div className="flex gap-2 items-start">
+                                    <div className="flex-1 rounded bg-red-500/10 px-2 py-1 line-through text-red-600 dark:text-red-400">
+                                      {previousPrompt.title}
+                                    </div>
+                                    <div className="flex-1 rounded bg-green-500/10 px-2 py-1 text-green-600 dark:text-green-400">
+                                      {currentVersion.title}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Description change */}
+                              {changes.changes.includes('description') && previousPrompt && (
+                                <div className="text-xs space-y-1">
+                                  <div className="text-muted-foreground">Description:</div>
+                                  <div className="flex gap-2 items-start">
+                                    <div className="flex-1 rounded bg-red-500/10 px-2 py-1 line-through text-red-600 dark:text-red-400">
+                                      {previousPrompt.description || '(empty)'}
+                                    </div>
+                                    <div className="flex-1 rounded bg-green-500/10 px-2 py-1 text-green-600 dark:text-green-400">
+                                      {currentVersion.description || '(empty)'}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Tags change */}
+                              {changes.changes.includes('tags') && previousPrompt && (
+                                <div className="text-xs space-y-1">
+                                  <div className="text-muted-foreground">Tags:</div>
+                                  <div className="flex gap-2 items-start">
+                                    <div className="flex-1 rounded bg-red-500/10 px-2 py-1">
+                                      {previousPrompt.tags.map(tag => (
+                                        <Badge key={tag} variant="outline" className="mr-1 text-xs line-through text-red-600 dark:text-red-400">
+                                          {tag}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                    <div className="flex-1 rounded bg-green-500/10 px-2 py-1">
+                                      {currentVersion.tags.map(tag => (
+                                        <Badge key={tag} variant="outline" className="mr-1 text-xs text-green-600 dark:text-green-400">
+                                          {tag}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Content Display/Diff */}
+                          {changes.type === 'initial' || !changes.metadataOnly ? (
+                            <div className="rounded-md border bg-muted/50 p-3">
+                              <div className="text-xs font-semibold text-muted-foreground mb-2">
+                                {changes.type === 'initial' ? 'Initial Content:' : 'Content:'}
+                              </div>
+                              <pre className="whitespace-pre-wrap font-mono text-xs max-h-60 overflow-y-auto">
+                                {currentVersion.content}
+                              </pre>
+                            </div>
+                          ) : (
+                            <div className="rounded-md border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-700 dark:text-blue-300">
+                              ℹ️ Metadata-only update (content unchanged)
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+                {selectedVersionTxId === version.txId && !selectedVersionData && !loading && (
+                  <div className="mt-3 rounded-md border border-red-600/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
+                    ⚠ Failed to load this version
                   </div>
                 )}
               </div>

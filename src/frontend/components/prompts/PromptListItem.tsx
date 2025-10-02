@@ -50,7 +50,7 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
 
   return (
     <div
-      className={`group relative border-b border-border py-4 px-4 hover:bg-muted/50 transition-colors cursor-pointer ${copied ? 'bg-primary/5' : ''} ${isSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
+      className={`group relative border-b border-border py-4 px-4 md:hover:bg-muted/50 transition-colors cursor-pointer ${copied ? 'bg-primary/5' : ''} ${isSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
       onClick={handleCopy}
       title="Click to copy"
     >
@@ -99,7 +99,7 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
       </div>
 
       {/* Actions - Bottom Right */}
-      <div className="absolute bottom-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/95 backdrop-blur-sm rounded-md p-1 shadow-sm">
+      <div className="absolute bottom-4 right-4 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-background/95 backdrop-blur-sm rounded-md p-1 shadow-sm">
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -110,9 +110,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                   e.stopPropagation();
                   onView();
                 }}
-                className="h-8 w-8 p-0"
+                className="h-11 w-11 md:h-8 md:w-8 p-0"
               >
-                <ExternalLink className="h-3.5 w-3.5" />
+                <ExternalLink className="h-4 w-4 md:h-3.5 md:w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -131,9 +131,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                       e.stopPropagation();
                       onEdit();
                     }}
-                    className="h-8 w-8 p-0"
+                    className="h-11 w-11 md:h-8 md:w-8 p-0"
                   >
-                    <Edit className="h-3.5 w-3.5" />
+                    <Edit className="h-4 w-4 md:h-3.5 md:w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -150,9 +150,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                       e.stopPropagation();
                       onArchive();
                     }}
-                    className="h-8 w-8 p-0"
+                    className="h-11 w-11 md:h-8 md:w-8 p-0"
                   >
-                    <Archive className="h-3.5 w-3.5" />
+                    <Archive className="h-4 w-4 md:h-3.5 md:w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -170,9 +170,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                     e.stopPropagation();
                     onRestore();
                   }}
-                  className="h-8 w-8 p-0"
+                  className="h-11 w-11 md:h-8 md:w-8 p-0"
                 >
-                  <ArchiveRestore className="h-3.5 w-3.5" />
+                  <ArchiveRestore className="h-4 w-4 md:h-3.5 md:w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -187,9 +187,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                 size="sm"
                 variant="ghost"
                 onClick={(e) => e.stopPropagation()}
-                className="h-8 w-8 p-0"
+                className="h-11 w-11 md:h-8 md:w-8 p-0"
               >
-                <Info className="h-3.5 w-3.5" />
+                <Info className="h-4 w-4 md:h-3.5 md:w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top" align="end" className="text-xs p-3">

@@ -134,6 +134,35 @@ function App() {
   const [sampleEncryptedData, setSampleEncryptedData] = useState<EncryptedData | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+  // Track grid columns for keyboard navigation
+  const [gridColumns, setGridColumns] = useState(1);
+
+  useEffect(() => {
+    const updateGridColumns = () => {
+      const width = window.innerWidth;
+      if (width >= 1280) setGridColumns(4); // xl
+      else if (width >= 1024) setGridColumns(3); // lg
+      else if (width >= 640) setGridColumns(2); // sm
+      else setGridColumns(1); // default
+    };
+
+    updateGridColumns();
+    window.addEventListener('resize', updateGridColumns);
+    return () => window.removeEventListener('resize', updateGridColumns);
+  }, []);
+
+  // Blur search input when any dialog opens
+  useEffect(() => {
+    const anyDialogOpen = viewDialogOpen || editorOpen || versionHistoryOpen || uploadDialogOpen || passwordPromptOpen || passwordUnlockOpen || notificationsDialogOpen;
+
+    if (anyDialogOpen) {
+      const activeElement = document.activeElement as HTMLElement;
+      if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+        activeElement.blur();
+      }
+    }
+  }, [viewDialogOpen, editorOpen, versionHistoryOpen, uploadDialogOpen, passwordPromptOpen, passwordUnlockOpen, notificationsDialogOpen]);
+
   const toggleViewMode = () => {
     const newMode = viewMode === 'list' ? 'cards' : 'list';
     setViewMode(newMode);
@@ -322,14 +351,60 @@ function App() {
           if (blockingDialogOpen) return;
           if (!isSearchInput && isTyping) return;
           event.preventDefault();
-          setSelectedIndex((prev) => (prev + 1) % numResults);
+          if (viewMode === 'list') {
+            // List view: go to next item
+            setSelectedIndex((prev) => (prev + 1) % numResults);
+          } else {
+            // Grid view: go down one row
+            setSelectedIndex((prev) => {
+              const next = prev + gridColumns;
+              return next < numResults ? next : prev;
+            });
+          }
           break;
         case 'ArrowUp':
           // Don't allow in any dialogs or when typing (except search)
           if (blockingDialogOpen) return;
           if (!isSearchInput && isTyping) return;
           event.preventDefault();
-          setSelectedIndex((prev) => (prev - 1 + numResults) % numResults);
+          if (viewMode === 'list') {
+            // List view: go to previous item
+            setSelectedIndex((prev) => (prev - 1 + numResults) % numResults);
+          } else {
+            // Grid view: go up one row
+            setSelectedIndex((prev) => {
+              const next = prev - gridColumns;
+              return next >= 0 ? next : prev;
+            });
+          }
+          break;
+        case 'ArrowLeft':
+          // Only for grid view
+          if (viewMode !== 'cards') return;
+          if (blockingDialogOpen) return;
+          if (!isSearchInput && isTyping) return;
+          event.preventDefault();
+          setSelectedIndex((prev) => {
+            // Don't go left if we're at the first column
+            const currentCol = prev % gridColumns;
+            if (currentCol === 0) return prev;
+            return prev - 1;
+          });
+          break;
+        case 'ArrowRight':
+          // Only for grid view
+          if (viewMode !== 'cards') return;
+          if (blockingDialogOpen) return;
+          if (!isSearchInput && isTyping) return;
+          event.preventDefault();
+          setSelectedIndex((prev) => {
+            // Don't go right if we're at the last column or last item
+            const currentCol = prev % gridColumns;
+            const isLastColumn = currentCol === gridColumns - 1;
+            const isLastItem = prev === numResults - 1;
+            if (isLastColumn || isLastItem) return prev;
+            return prev + 1;
+          });
           break;
         case 'Enter':
           // Don't allow in any dialogs
@@ -365,7 +440,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filteredPrompts, selectedIndex, selectedPrompt, viewDialogOpen, editorOpen, versionHistoryOpen, uploadDialogOpen, passwordPromptOpen, passwordUnlockOpen, password, archivePrompt, restorePrompt]);
+  }, [filteredPrompts, selectedIndex, selectedPrompt, viewDialogOpen, editorOpen, versionHistoryOpen, uploadDialogOpen, passwordPromptOpen, passwordUnlockOpen, password, archivePrompt, restorePrompt, viewMode, gridColumns]);
 
   const handleCreateNew = () => {
     setEditingPrompt(null);
@@ -494,7 +569,7 @@ function App() {
           <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
             <Folder className="h-5 w-5 sm:h-6 sm:w-6" />
             <span className="hidden sm:inline">Pocket Prompt</span>
-            <span className="sm:hidden">PP</span>
+            <span className="sm:hidden">PktPrmpt</span>
           </h1>
           <div className="flex items-center gap-2">
             <TooltipProvider>
@@ -665,6 +740,7 @@ function App() {
         onOpenChange={setVersionHistoryOpen}
         prompt={selectedPrompt}
         onRestoreVersion={handleRestoreVersion}
+        password={password || undefined}
       />
 
       <UploadDialog
