@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Plus, Archive as ArchiveIcon, Folder, Upload, Copy, Bell } from 'lucide-react';
+import { Plus, Archive as ArchiveIcon, Upload, Copy, Bell } from 'lucide-react';
 import { WalletButton } from '@/frontend/components/wallet/WalletButton';
 import { SearchBar, type SearchBarHandle } from '@/frontend/components/search/SearchBar';
 import { PromptCard } from '@/frontend/components/prompts/PromptCard';
@@ -13,6 +13,7 @@ import { PasswordPrompt } from '@/frontend/components/wallet/PasswordPrompt';
 import { PasswordUnlock } from '@/frontend/components/wallet/PasswordUnlock';
 import { ThemeToggle } from '@/frontend/components/shared/ThemeToggle';
 import { InstallPrompt } from '@/frontend/components/pwa/InstallPrompt';
+import { PublicPromptView } from '@/frontend/components/prompts/PublicPromptView';
 import { Button } from '@/frontend/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/frontend/components/ui/tooltip';
 import { useWallet } from '@/frontend/hooks/useWallet';
@@ -31,9 +32,17 @@ import type { FileImportResult } from '@/shared/utils/import';
 import { getViewMode, saveViewMode, hasEncryptedPromptsInCache } from '@/core/storage/cache';
 import type { EncryptedData } from '@/core/encryption/crypto';
 import { findDuplicates } from '@/core/validation/duplicates';
+import { parseDeepLink, updateDeepLink, urlParamToExpression } from '@/frontend/utils/deepLinks';
 
 function App() {
   useInitializeTheme();
+
+  // Check for public prompt viewing (txid parameter) - no wallet required
+  const [publicTxId, setPublicTxId] = useState<string | null>(() => {
+    const params = parseDeepLink();
+    return params.txid || null;
+  });
+
   const { address, connected } = useWallet();
   const { password, setPassword, hasPassword } = usePassword();
   const {
@@ -42,12 +51,16 @@ function App() {
     searchQuery,
     selectedTags,
     booleanExpression,
+    activeSavedSearch,
     loadPrompts,
     addPrompt,
     updatePrompt,
     archivePrompt,
     restorePrompt,
     setUploadCallbacks,
+    setSearchQuery,
+    setBooleanExpression,
+    loadSavedSearch,
   } = usePrompts();
 
   // Collections management with Arweave sync
@@ -136,6 +149,7 @@ function App() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const searchBarRef = useRef<SearchBarHandle>(null);
+  const [deepLinkInitialized, setDeepLinkInitialized] = useState(false);
 
   // Track grid columns for keyboard navigation
   const [gridColumns, setGridColumns] = useState(1);
@@ -153,6 +167,89 @@ function App() {
     window.addEventListener('resize', updateGridColumns);
     return () => window.removeEventListener('resize', updateGridColumns);
   }, []);
+
+  // Parse deep link parameters on initial load
+  useEffect(() => {
+    if (!connected || !hasPassword || deepLinkInitialized || prompts.length === 0) return;
+
+    const params = parseDeepLink();
+
+    // Apply search query
+    if (params.q) {
+      setSearchQuery(params.q);
+    }
+
+    // Apply boolean expression filter
+    if (params.expr) {
+      const expression = urlParamToExpression(params.expr);
+      if (expression) {
+        setBooleanExpression(expression, params.q);
+      }
+    }
+
+    // Apply collection filter
+    if (params.collection && collections.collections) {
+      const savedSearch = collections.collections.find(
+        (s: any) => s.id === params.collection
+      );
+      if (savedSearch) {
+        loadSavedSearch(savedSearch);
+      }
+    }
+
+    // Apply archived filter
+    if (params.archived) {
+      setShowArchived(true);
+    }
+
+    // Apply duplicates filter
+    if (params.duplicates) {
+      setShowDuplicates(true);
+    }
+
+    // Open specific prompt
+    if (params.prompt) {
+      const prompt = prompts.find(p => p.id === params.prompt);
+      if (prompt) {
+        setSelectedPrompt(prompt);
+        setViewDialogOpen(true);
+      }
+    }
+
+    setDeepLinkInitialized(true);
+  }, [connected, hasPassword, deepLinkInitialized, prompts, collections.collections, setSearchQuery, setBooleanExpression, loadSavedSearch]);
+
+  // Update URL when app state changes (debounced)
+  useEffect(() => {
+    if (!deepLinkInitialized) return;
+
+    const timeoutId = setTimeout(() => {
+      const { expressionToString } = require('@/core/search/boolean');
+      const { wasPromptEncrypted } = require('@/core/encryption/crypto');
+
+      // If viewing a public prompt, use txid instead of prompt id
+      let txidParam: string | undefined;
+      if (viewDialogOpen && selectedPrompt && selectedPrompt.currentTxId) {
+        const isPublic = !wasPromptEncrypted(selectedPrompt.tags);
+        if (isPublic) {
+          txidParam = selectedPrompt.currentTxId;
+        }
+      }
+
+      updateDeepLink({
+        q: searchQuery || undefined,
+        expr: booleanExpression && !activeSavedSearch ? expressionToString(booleanExpression) : undefined,
+        collection: activeSavedSearch?.id,
+        // Don't include prompt param if we're using txid
+        prompt: !txidParam && viewDialogOpen && selectedPrompt ? selectedPrompt.id : undefined,
+        archived: showArchived || undefined,
+        duplicates: showDuplicates || undefined,
+        txid: txidParam,
+      });
+    }, 300); // Debounce for 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, booleanExpression, activeSavedSearch, viewDialogOpen, selectedPrompt, showArchived, showDuplicates, deepLinkInitialized]);
 
   // Blur search input when any dialog opens
   useEffect(() => {
@@ -523,6 +620,12 @@ function App() {
     }
   };
 
+  const handleExitPublicView = () => {
+    setPublicTxId(null);
+    const url = new URL(window.location.href);
+    window.history.replaceState({}, '', url.pathname);
+  };
+
   const handleBatchImport = async (selectedPrompts: FileImportResult[]) => {
     let imported = 0;
     let updated = 0;
@@ -581,12 +684,17 @@ function App() {
     alert(message);
   };
 
+  // Public prompt view (no wallet required)
+  if (publicTxId) {
+    return <PublicPromptView txId={publicTxId} onBack={handleExitPublicView} />;
+  }
+
   if (!connected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="text-center space-y-6 max-w-md">
           <div className="animate-bounce-slow">
-            <Folder className="h-16 w-16 sm:h-20 sm:w-20 mx-auto text-primary" />
+            <img src="/logo.svg" alt="Pocket Prompt Logo" className="h-16 w-16 sm:h-20 sm:w-20 mx-auto" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold">Pocket Prompt</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
@@ -605,7 +713,7 @@ function App() {
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 sm:px-4 md:px-0 py-4 sm:py-4">
           <h1 className="flex items-center gap-2.5 sm:gap-2 text-lg font-bold sm:text-xl md:text-2xl">
-            <Folder className="h-6 w-6 sm:h-6 sm:w-6 text-primary" />
+            <img src="/logo.svg" alt="Pocket Prompt Logo" className="h-6 w-6 sm:h-6 sm:w-6" />
             <span className="sm:hidden">Pocket</span>
             <span className="hidden sm:inline">Pocket Prompt</span>
           </h1>
@@ -695,7 +803,7 @@ function App() {
               <div className="animate-spin inline-block w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full" role="status">
                 <span className="sr-only">Loading...</span>
               </div>
-              <Folder className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 text-primary animate-pulse" />
+              <img src="/logo.svg" alt="Pocket Prompt Logo" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 animate-pulse" />
             </div>
             <p className="mt-4 text-muted-foreground animate-pulse">Fetching your prompts...</p>
           </div>

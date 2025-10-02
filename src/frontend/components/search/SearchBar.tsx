@@ -1,4 +1,4 @@
-import { Search, X, Filter, Bookmark, Archive, LayoutGrid, List } from 'lucide-react';
+import { Search, X, Filter, Bookmark, Archive, LayoutGrid, List, Share2, Check } from 'lucide-react';
 import { Input } from '@/frontend/components/ui/input';
 import { Badge } from '@/frontend/components/ui/badge';
 import { Button } from '@/frontend/components/ui/button';
@@ -11,6 +11,7 @@ import type { BooleanExpression, SavedSearch } from '@/shared/types/prompt';
 import type { UseCollectionsReturn } from '@/frontend/hooks/useCollections';
 import { BooleanBuilder } from '@/frontend/components/search/BooleanBuilder';
 import { getDuplicateCount } from '@/core/validation/duplicates';
+import { generateShareableUrl } from '@/frontend/utils/deepLinks';
 
 interface SearchBarProps {
   showArchived: boolean;
@@ -45,6 +46,7 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
   const [showBooleanBuilder, setShowBooleanBuilder] = useState(false);
   const [expressionText, setExpressionText] = useState('');
   const [savedSearchesDialogOpen, setSavedSearchesDialogOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Expose methods to parent component
@@ -98,6 +100,19 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
   const handleApplyExpression = (expression: BooleanExpression) => {
     setBooleanExpression(expression, searchQuery || undefined);
     setShowBooleanBuilder(false);
+  };
+
+  const handleShareLink = () => {
+    const shareUrl = generateShareableUrl({
+      q: searchQuery || undefined,
+      expr: booleanExpression ? (activeSavedSearch ? undefined : expressionToString(booleanExpression)) : undefined,
+      collection: activeSavedSearch?.id,
+      archived: showArchived || undefined,
+      duplicates: showDuplicates || undefined,
+    });
+    navigator.clipboard.writeText(shareUrl);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   const tagLabel = allTags.length === 1 ? 'tag' : 'tags';
@@ -169,6 +184,19 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
                   title="Collections"
                 >
                   <Bookmark className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleShareLink}
+                  className="h-8 w-8 sm:h-7 sm:w-7 p-0 text-muted-foreground"
+                  title="Copy shareable link"
+                >
+                  {linkCopied ? (
+                    <Check className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                  ) : (
+                    <Share2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                  )}
                 </Button>
                 <Button
                   variant={showArchived ? 'default' : 'ghost'}

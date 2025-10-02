@@ -6,7 +6,6 @@ import { Button } from '@/frontend/components/ui/button';
 import { Badge } from '@/frontend/components/ui/badge';
 import { importMarkdownDirectory, type FileImportResult } from '@/shared/utils/import';
 import { estimatePromptUploadSize, formatBytes, getSizeWarningLevel } from '@/core/validation/fileSize';
-import { findDuplicates } from '@/core/validation/duplicates';
 import type { Prompt } from '@/shared/types/prompt';
 
 interface UploadDialogProps {
@@ -15,9 +14,10 @@ interface UploadDialogProps {
   onImport: (selectedPrompts: FileImportResult[]) => Promise<void>;
   existingPromptIds: string[];
   existingPrompts: Prompt[];
+  initialPrompts?: FileImportResult[]; // Optional: Pre-populate with prompts (e.g., from public view)
 }
 
-export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, existingPrompts }: UploadDialogProps) {
+export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, existingPrompts, initialPrompts }: UploadDialogProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [preview, setPreview] = useState<FileImportResult[] | null>(null);
@@ -26,6 +26,20 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
   const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle initial prompts (e.g., from public prompt view)
+  useEffect(() => {
+    if (open && initialPrompts && initialPrompts.length > 0) {
+      setPreview(initialPrompts);
+      // Auto-select all initially provided prompts
+      const validIds = new Set(
+        initialPrompts
+          .filter(r => r.success && r.prompt)
+          .map(r => r.prompt!.id)
+      );
+      setSelectedIds(validIds);
+    }
+  }, [open, initialPrompts]);
 
   const resetState = () => {
     setPreview(null);
@@ -68,27 +82,20 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
 
       setFileSizes(sizeMap);
 
-      // Check for duplicates against existing prompts
+      // Check for duplicates based on title matching
       if (existingPrompts.length > 0 && importedPrompts.length > 0) {
-        // Combine existing and imported prompts to find duplicates
-        const allPrompts = [...existingPrompts, ...importedPrompts];
-        const duplicateGroups = findDuplicates(allPrompts);
-
-        // Find which imported prompts are in duplicate groups
         const duplicateSet = new Set<string>();
-        duplicateGroups.forEach(group => {
-          // Check if this group contains any imported prompts
-          const hasImported = group.prompts.some(p =>
-            importedPrompts.some(ip => ip.id === p.id)
-          );
 
-          if (hasImported) {
-            // Mark all prompts in this group that are in the import
-            group.prompts.forEach(p => {
-              if (importedPrompts.some(ip => ip.id === p.id)) {
-                duplicateSet.add(p.id);
-              }
-            });
+        importedPrompts.forEach(imported => {
+          // Check if any existing prompt has the same title
+          const isDuplicate = existingPrompts.some(existing => {
+            const importedTitle = imported.title.trim().toLowerCase();
+            const existingTitle = existing.title.trim().toLowerCase();
+            return importedTitle === existingTitle;
+          });
+
+          if (isDuplicate) {
+            duplicateSet.add(imported.id);
           }
         });
 
@@ -261,7 +268,7 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
     onOpenChange(false);
   };
 
-  // Preview mode
+  // Preview mode (either from file upload or initial prompts)
   if (preview) {
     const successCount = preview.filter(p => p.success).length;
     const errorCount = preview.filter(p => !p.success).length;
@@ -286,19 +293,22 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
 
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          {/* Header - Sticky */}
+          <DialogHeader className="flex-none">
             <DialogTitle className="flex items-center justify-between">
               <span>Review Prompts ({successCount} parsed, {selectedCount} selected)</span>
-              <Button variant="ghost" size="sm" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
+              {!initialPrompts && (
+                <Button variant="ghost" size="sm" onClick={handleBack}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
 
-          {/* Stats */}
-          <div className="flex gap-2 flex-wrap">
+          {/* Stats - Sticky */}
+          <div className="flex gap-2 flex-wrap flex-none pb-4">
             {newCount > 0 && (
               <Badge variant="default">{newCount} new</Badge>
             )}
@@ -319,8 +329,8 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
             )}
           </div>
 
-          {/* Prompt List */}
-          <div className="flex-1 overflow-y-auto space-y-2 min-h-[300px] max-h-[500px] border rounded-lg p-4">
+          {/* Prompt List - Scrollable Content */}
+          <div className="flex-1 overflow-y-auto space-y-2 border rounded-lg p-4">
             {preview.map((result, index) => {
               const isSelected = result.prompt && selectedIds.has(result.prompt.id);
               const willUpdate = result.prompt && existingPromptIds.includes(result.prompt.id);
@@ -418,8 +428,8 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
             })}
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-between items-center border-t pt-4">
+          {/* Actions - Sticky Footer */}
+          <div className="flex justify-between items-center border-t pt-4 flex-none">
             <div className="text-sm text-muted-foreground">
               {selectedCount} of {successCount} prompts selected
             </div>

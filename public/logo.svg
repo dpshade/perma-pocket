@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2D5F4F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#234A3C;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Main rounded square background -->
+  <rect x="80" y="80" width="352" height="352" rx="80" fill="url(#bgGradient)"/>
+
+  <!-- Large pocket opening with point nearly touching bottom -->
+  <path d="M 120 300 L 120 380 C 120 402 138 420 160 420 L 352 420 C 374 420 392 402 392 380 L 392 300 L 256 415 Z"
+        fill="#F5F9F7"
+        fill-opacity="0.98"/>
+
+  <!-- Subtle shadow line to emphasize pocket opening -->
+  <path d="M 120 300 L 256 415 L 392 300"
+        stroke="rgba(0,0,0,0.2)"
+        stroke-width="3"
+        fill="none"/>
+</svg>

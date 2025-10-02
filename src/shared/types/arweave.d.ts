@@ -3,11 +3,13 @@
  * Augments the arconnect package types with the new signMessage API
  */
 
+import type { ArConnectWebWallet } from 'arconnect';
+
 declare global {
   interface Window {
-    arweaveWallet: {
+    arweaveWallet: ArConnectWebWallet & {
       /**
-       * Sign a message using the wallet
+       * Sign a message using the wallet (new API)
        * @param data Message data to sign
        * @param options Hash algorithm options
        * @returns Promise of the signature
@@ -18,11 +20,6 @@ declare global {
           hashAlgorithm?: 'SHA-256' | 'SHA-384' | 'SHA-512';
         }
       ): Promise<Uint8Array>;
-
-      /**
-       * Get the active wallet address
-       */
-      getActiveAddress(): Promise<string>;
     };
   }
 }

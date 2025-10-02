@@ -1,23 +1,25 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Wallet, LogOut, Copy, Check, Lock } from 'lucide-react';
 import { Button } from '@/frontend/components/ui/button';
 import { useWallet } from '@/frontend/hooks/useWallet';
 import { usePassword } from '@/frontend/contexts/PasswordContext';
-import { useState } from 'react';
+import { ConnectWalletModal } from './ConnectWalletModal';
+import type { ArNSWalletConnector, WALLET_TYPES } from '@/shared/types/wallet';
 
 interface WalletButtonProps {
   onSetPassword?: () => void;
 }
 
 export function WalletButton({ onSetPassword }: WalletButtonProps = {}) {
-  const { address, connected, connecting, connect, disconnect, checkConnection } = useWallet();
+  const { address, connected, connecting, disconnect, checkConnection, setWallet, walletType } = useWallet();
   const { hasPassword, clearPassword } = usePassword();
   const [copied, setCopied] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   useEffect(() => {
     checkConnection();
-  }, []);
+  }, [checkConnection]);
 
   const truncateAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -42,17 +44,31 @@ export function WalletButton({ onSetPassword }: WalletButtonProps = {}) {
     setShowDropdown(false);
   };
 
+  const handleConnect = (connector: ArNSWalletConnector, address: string) => {
+    // Determine wallet type from localStorage or connector type
+    const storedWalletType = localStorage.getItem('walletType') as WALLET_TYPES;
+    setWallet(connector, address, storedWalletType);
+  };
+
   if (!connected) {
     return (
-      <Button
-        onClick={connect}
-        disabled={connecting}
-        variant="default"
-        size="default"
-      >
-        <Wallet className="mr-2 h-4 w-4" />
-        {connecting ? 'Connecting...' : 'Connect Wallet'}
-      </Button>
+      <>
+        <Button
+          onClick={() => setShowConnectModal(true)}
+          disabled={connecting}
+          variant="default"
+          size="default"
+        >
+          <Wallet className="mr-2 h-4 w-4" />
+          {connecting ? 'Connecting...' : 'Connect Wallet'}
+        </Button>
+
+        <ConnectWalletModal
+          open={showConnectModal}
+          onClose={() => setShowConnectModal(false)}
+          onConnect={handleConnect}
+        />
+      </>
     );
   }
 
@@ -62,6 +78,7 @@ export function WalletButton({ onSetPassword }: WalletButtonProps = {}) {
         onClick={() => setShowDropdown(!showDropdown)}
         variant="outline"
         size="default"
+        title={walletType ? `Connected with ${walletType}` : 'Connected'}
       >
         <Wallet className="mr-2 h-4 w-4" />
         {address && truncateAddress(address)}

@@ -20,7 +20,12 @@
       "WebFetch(domain:github.com)",
       "Bash(cd:*)",
       "Read(//Users/dps/Developer/**)",
-      "Bash(convert:*)"
+      "Bash(convert:*)",
+      "Bash(cat:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/ar-io/arns-react/develop/src/components/icons/index.ts\")",
+      "Bash(curl:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

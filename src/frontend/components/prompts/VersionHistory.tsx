@@ -3,7 +3,7 @@ import { Button } from '@/frontend/components/ui/button';
 import { Badge } from '@/frontend/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/frontend/components/ui/tooltip';
 import type { Prompt, PromptVersion } from '@/shared/types/prompt';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { fetchPrompt } from '@/backend/api/client';
 import { ExternalLink, Eye } from 'lucide-react';
 
@@ -30,6 +30,9 @@ export function VersionHistory({
   const [selectedVersionTxId, setSelectedVersionTxId] = useState<string | null>(null);
   const [selectedVersionData, setSelectedVersionData] = useState<VersionData | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Cache for fetched version data to avoid redundant network requests
+  const versionCacheRef = useRef<Map<string, Prompt>>(new Map());
 
   if (!prompt) return null;
 
@@ -58,8 +61,46 @@ export function VersionHistory({
 
     setLoading(true);
     try {
-      // Fetch current version
-      const versionPrompt = await fetchPrompt(version.txId, password);
+      const cache = versionCacheRef.current;
+
+      // Helper to get version from cache or fetch
+      const getVersion = async (txId: string): Promise<Prompt | null> => {
+        // Check cache first
+        if (cache.has(txId)) {
+          return cache.get(txId)!;
+        }
+
+        // If it's the current version, use the prompt prop (already available)
+        if (txId === prompt.currentTxId) {
+          cache.set(txId, prompt);
+          return prompt;
+        }
+
+        // Fetch from network
+        const fetched = await fetchPrompt(txId, password);
+        if (fetched) {
+          cache.set(txId, fetched);
+        }
+        return fetched;
+      };
+
+      // Prepare fetch operations
+      const fetchOperations: [Promise<Prompt | null>, Promise<Prompt | null> | null] = [
+        getVersion(version.txId),
+        null,
+      ];
+
+      // Fetch previous version for comparison (if not first version)
+      if (index > 0) {
+        const prevVersion = uniqueVersions[index - 1];
+        fetchOperations[1] = getVersion(prevVersion.txId);
+      }
+
+      // Execute fetches in parallel
+      const [versionPrompt, previousPrompt] = await Promise.all([
+        fetchOperations[0],
+        fetchOperations[1] || Promise.resolve(null),
+      ]);
 
       if (!versionPrompt) {
         setSelectedVersionTxId(version.txId);
@@ -67,17 +108,10 @@ export function VersionHistory({
         return;
       }
 
-      // Fetch previous version for comparison (if not first version)
-      let previousPrompt: Prompt | undefined;
-      if (index > 0) {
-        const prevVersion = prompt.versions[index - 1];
-        previousPrompt = await fetchPrompt(prevVersion.txId, password) || undefined;
-      }
-
       setSelectedVersionTxId(version.txId);
       setSelectedVersionData({
         prompt: versionPrompt,
-        previousPrompt,
+        previousPrompt: previousPrompt || undefined,
       });
     } catch (error) {
       console.error('Failed to load version:', error);
