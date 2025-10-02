@@ -4,7 +4,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { Package, AlertTriangle, Lock, Unlock, CheckCircle, AlertCircle, Search, X } from 'lucide-react';
+import { Package, AlertTriangle, Lock, Globe, CheckCircle, AlertCircle, Search, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog';
 import { Button } from '@/frontend/components/ui/button';
 import { Input } from '@/frontend/components/ui/input';
@@ -36,6 +36,7 @@ export function ExportDialog({
 }: ExportDialogProps) {
   const [stage, setStage] = useState<ExportStage>('selection');
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [collectionName, setCollectionName] = useState('');
   const [description, setDescription] = useState('');
@@ -49,14 +50,26 @@ export function ExportDialog({
   const [manifestTxId, setManifestTxId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter prompts based on search
+  // Filter prompts based on search and visibility
   const filteredPrompts = useMemo(() => {
-    if (!searchQuery) return allPrompts.filter(p => !p.isArchived);
+    let results = allPrompts.filter(p => !p.isArchived);
 
-    const searchResults = searchPrompts(searchQuery);
-    const resultIds = new Set(searchResults.map(r => r.id));
-    return allPrompts.filter(p => !p.isArchived && resultIds.has(p.id));
-  }, [allPrompts, searchQuery]);
+    // Apply search filter
+    if (searchQuery) {
+      const searchResults = searchPrompts(searchQuery);
+      const resultIds = new Set(searchResults.map(r => r.id));
+      results = results.filter(p => resultIds.has(p.id));
+    }
+
+    // Apply visibility filter
+    if (visibilityFilter === 'public') {
+      results = results.filter(p => !shouldEncrypt(p.tags));
+    } else if (visibilityFilter === 'private') {
+      results = results.filter(p => shouldEncrypt(p.tags));
+    }
+
+    return results;
+  }, [allPrompts, searchQuery, visibilityFilter]);
 
   // Get selected prompts
   const selectedPrompts = useMemo(() => {
@@ -72,6 +85,7 @@ export function ExportDialog({
     if (open) {
       setStage('selection');
       setSearchQuery('');
+      setVisibilityFilter('all');
       setSelectedIds(new Set());
       setCollectionName('');
       setDescription('');
@@ -209,20 +223,48 @@ export function ExportDialog({
           )}
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={selectAll}>
-              Select All ({filteredPrompts.length})
+        {/* Visibility filter toggle */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Show:</span>
+          <div className="inline-flex rounded-md border border-border">
+            <Button
+              size="sm"
+              variant={visibilityFilter === 'all' ? 'default' : 'ghost'}
+              onClick={() => setVisibilityFilter('all')}
+              className="h-7 px-3 text-xs rounded-none rounded-l-md border-0"
+            >
+              All
             </Button>
-            {selectedIds.size > 0 && (
-              <Button size="sm" variant="outline" onClick={clearSelection}>
-                Clear Selection
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant={visibilityFilter === 'public' ? 'default' : 'ghost'}
+              onClick={() => setVisibilityFilter('public')}
+              className="h-7 px-3 text-xs rounded-none border-0 border-l flex items-center gap-1"
+            >
+              <Globe className="h-3 w-3" />
+              Public
+            </Button>
+            <Button
+              size="sm"
+              variant={visibilityFilter === 'private' ? 'default' : 'ghost'}
+              onClick={() => setVisibilityFilter('private')}
+              className="h-7 px-3 text-xs rounded-none rounded-r-md border-0 border-l flex items-center gap-1"
+            >
+              <Lock className="h-3 w-3" />
+              Private
+            </Button>
           </div>
-          <Badge variant="secondary">
-            {selectedIds.size} selected
-          </Badge>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={selectAll}>
+            Select All ({filteredPrompts.length})
+          </Button>
+          {selectedIds.size > 0 && (
+            <Button size="sm" variant="outline" onClick={clearSelection}>
+              Clear Selection
+            </Button>
+          )}
         </div>
       </div>
 
@@ -262,7 +304,7 @@ export function ExportDialog({
                       {isEncrypted ? (
                         <Lock className="h-3 w-3 text-amber-600 flex-shrink-0" />
                       ) : (
-                        <Unlock className="h-3 w-3 text-green-600 flex-shrink-0" />
+                        <Globe className="h-3 w-3 text-blue-600 flex-shrink-0" />
                       )}
                     </div>
                     {prompt.description && (
@@ -353,7 +395,7 @@ export function ExportDialog({
           <Badge variant="outline">{selectedPrompts.length} total prompts</Badge>
           {publicCount > 0 && (
             <Badge variant="outline" className="flex items-center gap-1">
-              <Unlock className="h-3 w-3" />
+              <Globe className="h-3 w-3" />
               {publicCount} public
             </Badge>
           )}
