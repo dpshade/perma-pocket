@@ -10,6 +10,16 @@ export function InstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
+    // Check if app is already running as installed PWA
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as any).standalone
+      || document.referrer.includes('android-app://');
+
+    // Don't show install prompt if already running as PWA
+    if (isStandalone) {
+      return;
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);

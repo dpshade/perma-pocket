@@ -25,7 +25,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(curl -s \"https://raw.githubusercontent.com/ar-io/arns-react/develop/src/components/icons/index.ts\")",
       "Bash(curl:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(magick:*)"
     ],
     "deny": [],
     "ask": []
