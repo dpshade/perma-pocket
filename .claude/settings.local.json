@@ -26,7 +26,9 @@
       "Bash(curl -s \"https://raw.githubusercontent.com/ar-io/arns-react/develop/src/components/icons/index.ts\")",
       "Bash(curl:*)",
       "Bash(find:*)",
-      "Bash(magick:*)"
+      "Bash(magick:*)",
+      "Bash(bun:*)",
+      "Bash(npm view:*)"
     ],
     "deny": [],
     "ask": []

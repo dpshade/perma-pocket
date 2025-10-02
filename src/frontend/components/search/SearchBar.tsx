@@ -49,6 +49,9 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
   const [linkCopied, setLinkCopied] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Inline autocomplete state
+  const [inlineSuggestion, setInlineSuggestion] = useState('');
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     focusSearchInput: () => {
@@ -68,6 +71,78 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
   useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
+
+  // Update inline suggestion when search query or cursor position changes
+  useEffect(() => {
+    if (!searchInputRef.current) {
+      setInlineSuggestion('');
+      return;
+    }
+
+    const input = searchInputRef.current;
+    const cursorPos = input.selectionStart || 0;
+
+    // Only show suggestion if cursor is at the end of the text
+    if (cursorPos !== searchQuery.length) {
+      setInlineSuggestion('');
+      return;
+    }
+
+    const textBeforeCursor = searchQuery.slice(0, cursorPos);
+    const lastHashIndex = textBeforeCursor.lastIndexOf('#');
+
+    if (lastHashIndex !== -1) {
+      const tagQuery = textBeforeCursor.slice(lastHashIndex + 1);
+
+      // Check if we're still in a tag (no space after #)
+      if (!tagQuery.includes(' ') && tagQuery.length > 0) {
+        // Find first tag that starts with the query
+        const matchingTag = allTags.find(tag =>
+          tag.toLowerCase().startsWith(tagQuery.toLowerCase())
+        );
+
+        if (matchingTag && matchingTag.toLowerCase() !== tagQuery.toLowerCase()) {
+          // Show the remaining part of the tag
+          const suggestion = matchingTag.slice(tagQuery.length);
+          setInlineSuggestion(suggestion);
+          return;
+        }
+      }
+    }
+
+    setInlineSuggestion('');
+  }, [searchQuery, allTags]);
+
+  // Handle inline autocomplete acceptance
+  const acceptInlineSuggestion = () => {
+    if (!inlineSuggestion || !searchInputRef.current) return;
+
+    const newQuery = searchQuery + inlineSuggestion + ' ';
+    setSearchQuery(newQuery);
+    setInlineSuggestion('');
+
+    // Set cursor position after the space
+    setTimeout(() => {
+      const input = searchInputRef.current;
+      if (input) {
+        input.setSelectionRange(newQuery.length, newQuery.length);
+        input.focus();
+      }
+    }, 0);
+  };
+
+  // Handle keyboard navigation for inline suggestion
+  const handleInlineAutocompleteKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!inlineSuggestion) return;
+
+    if (e.key === 'Tab' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      acceptInlineSuggestion();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setInlineSuggestion('');
+    }
+  };
 
   // Keyboard shortcuts: / and cmd+k/ctrl+k
   useEffect(() => {
@@ -123,12 +198,27 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
       <div className="border border-border/50 bg-muted/30 rounded-lg p-3 sm:p-2 space-y-2">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 sm:left-3 top-1/2 h-5 w-5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
+
+          {/* Inline suggestion overlay */}
+          {inlineSuggestion && (
+            <div
+              className="pointer-events-none absolute left-11 sm:left-10 top-1/2 -translate-y-1/2 text-base sm:text-sm text-muted-foreground/50"
+              style={{
+                whiteSpace: 'pre',
+                fontFamily: 'inherit'
+              }}
+            >
+              <span className="invisible">{searchQuery}</span>{inlineSuggestion}
+            </div>
+          )}
+
           <Input
             ref={searchInputRef}
             type="text"
-            placeholder={booleanExpression ? 'Additional text filter…' : 'Search prompts…'}
+            placeholder={booleanExpression ? 'Additional text filter…' : 'Search prompts… (use # for tags)'}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={handleInlineAutocompleteKeyDown}
             className="h-11 sm:h-8 w-full border-0 bg-transparent pl-11 sm:pl-10 pr-20 sm:pr-16 text-base sm:text-sm focus-visible:ring-0 py-0"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-1">
