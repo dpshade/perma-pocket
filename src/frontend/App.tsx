@@ -577,7 +577,7 @@ function App() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 py-3 sm:py-4">
           <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
             <Folder className="h-6 w-6 text-primary" />
             <span className="sm:hidden">Pocket</span>
@@ -635,7 +635,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
+      <main className="space-y-2 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
         <section className="mx-auto flex max-w-6xl flex-col gap-4">
           <SearchBar
             showArchived={showArchived}
@@ -681,7 +681,7 @@ function App() {
           </div>
         ) : (
           <>
-            <div className="mb-4 text-sm text-muted-foreground">
+            <div className="mb-4 ml-1 text-sm text-muted-foreground">
               Showing {filteredPrompts.length} {filteredPrompts.length === 1 ? 'prompt' : 'prompts'}
               {(() => {
                 const totalActive = prompts.filter(p => !p.isArchived).length;

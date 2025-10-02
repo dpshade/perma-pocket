@@ -13,7 +13,9 @@
       "WebFetch(domain:qnczm2vsjbf6f5xg3dcftlsl2paawqldxckfkierg2ccs6jnhg7a.arweave.net)",
       "Bash(node:*)",
       "Bash(brew install:*)",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "Bash(git remote get-url:*)",
+      "Read(//Users/dps/Developer/My Repos/**)"
     ],
     "deny": [],
     "ask": []
