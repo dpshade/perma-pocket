@@ -88,14 +88,37 @@ async function hashPassword(password: string): Promise<string> {
  * Derive a master encryption key from wallet address + password
  * This is deterministic: same wallet + same password = same key
  * Uses a pending promise to prevent race conditions during parallel derivation
+ * Supports both browser extension wallets (ArConnect/Wander) and keyfile wallets
  */
 async function getOrCreateMasterKey(password: string): Promise<CryptoKey> {
-  if (!window.arweaveWallet) {
-    throw new Error('Arweave wallet not connected');
+  // Get wallet address - supports all wallet types
+  let address: string | null = null;
+
+  // First, try to get wallet from the store (supports all wallet types including keyfile)
+  try {
+    const { useWallet } = await import('@/frontend/hooks/useWallet');
+    const walletState = useWallet.getState();
+
+    if (walletState.wallet && walletState.connected) {
+      address = await walletState.wallet.getWalletAddress();
+    }
+  } catch (error) {
+    console.warn('[Encryption] Could not access wallet store:', error);
   }
 
-  // Get current wallet address
-  const address = await window.arweaveWallet.getActiveAddress();
+  // Fallback to legacy ArConnect wallet for backward compatibility
+  if (!address && window.arweaveWallet) {
+    try {
+      address = await window.arweaveWallet.getActiveAddress();
+    } catch (error) {
+      console.warn('[Encryption] Could not get address from window.arweaveWallet:', error);
+    }
+  }
+
+  if (!address) {
+    throw new Error('No wallet connected');
+  }
+
   const passwordHash = await hashPassword(password);
 
   // If we have a cached key for this wallet and password, use it
