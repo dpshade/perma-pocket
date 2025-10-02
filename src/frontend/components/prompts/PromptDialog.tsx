@@ -108,10 +108,10 @@ export function PromptDialog({
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
         {/* Sticky Header */}
         <div className="flex-none px-6 pt-6 pb-4 border-b bg-background">
-          <DialogHeader>
+          <DialogHeader className="text-left">
             <div className="flex flex-col gap-2">
               <div className="flex flex-col gap-2">
-                <DialogTitle className="text-2xl">{prompt.title}</DialogTitle>
+                <DialogTitle className="text-2xl text-left">{prompt.title}</DialogTitle>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge
                     variant={isEncrypted ? "default" : "secondary"}
@@ -139,7 +139,7 @@ export function PromptDialog({
                   )}
                 </div>
                 {prompt.description && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground text-left">
                     {prompt.description}
                   </p>
                 )}
@@ -158,7 +158,7 @@ export function PromptDialog({
             )}
 
             {/* Metadata */}
-            <div className="text-xs text-muted-foreground space-y-1 mt-3">
+            <div className="text-xs text-muted-foreground space-y-1 mt-3 text-left">
               <div>Created: {formatDate(prompt.createdAt)}</div>
               <div>Last updated: {formatDate(prompt.updatedAt)}</div>
               {prompt.currentTxId && (
