@@ -208,9 +208,14 @@ function App() {
 
   // Filter prompts based on search and tags
   const filteredPrompts = prompts.filter(prompt => {
-    // Archive filter
-    if (showArchived && !prompt.isArchived) return false;
-    if (!showArchived && prompt.isArchived) return false;
+    // Archive filter - mutually exclusive
+    if (showArchived) {
+      // Only show archived prompts
+      if (!prompt.isArchived) return false;
+    } else {
+      // Only show non-archived prompts
+      if (prompt.isArchived) return false;
+    }
 
     // Duplicate filter
     if (showDuplicates) {

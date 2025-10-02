@@ -73,12 +73,10 @@ export const usePrompts = create<PromptsState>((set, get) => ({
       const cachedPrompts: Prompt[] = [];
       const toFetch: string[] = [];
 
-      // Check what we have cached by txId
+      // Check what we have cached by currentTxId (only latest versions from query)
       discoveredTxIds.forEach(txId => {
-        // Find cached prompt by matching currentTxId or any version txId
-        const cachedPrompt = Object.values(cached).find(
-          p => p.currentTxId === txId || p.versions.some(v => v.txId === txId)
-        );
+        // Find cached prompt by matching currentTxId
+        const cachedPrompt = Object.values(cached).find(p => p.currentTxId === txId);
 
         if (cachedPrompt) {
           cachedPrompts.push(cachedPrompt);
@@ -278,6 +276,12 @@ export const usePrompts = create<PromptsState>((set, get) => ({
       const result = await updatePromptArchiveStatus(prompt, true, jwk, password);
 
       if (result.success) {
+        // Notify upload started
+        const { onUploadStart, onUploadComplete } = get();
+        if (onUploadStart) {
+          onUploadStart(result.id, `${prompt.title} (archived)`);
+        }
+
         // Update with new txId and version entry
         const updatedPrompt: Prompt = {
           ...prompt,
@@ -342,6 +346,12 @@ export const usePrompts = create<PromptsState>((set, get) => ({
       const result = await updatePromptArchiveStatus(prompt, false, jwk, password);
 
       if (result.success) {
+        // Notify upload started
+        const { onUploadStart, onUploadComplete } = get();
+        if (onUploadStart) {
+          onUploadStart(result.id, `${prompt.title} (restored)`);
+        }
+
         // Update with new txId and version entry
         const updatedPrompt: Prompt = {
           ...prompt,

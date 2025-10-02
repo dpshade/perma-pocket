@@ -171,29 +171,94 @@ export async function queryUserPrompts(
 
 /**
  * Query all user's prompts with automatic pagination
- * Returns all transaction IDs across multiple pages
+ * Returns only the latest version of each unique prompt (by Prompt-Id)
  */
 export async function queryAllUserPrompts(walletAddress: string): Promise<string[]> {
-  const allTxIds: string[] = [];
+  const allEdges: GraphQLEdge[] = [];
   let hasNextPage = true;
   let cursor: string | null = null;
 
+  // Fetch all transactions across pages
   while (hasNextPage) {
-    const result = await queryUserPrompts(walletAddress, cursor || undefined);
-    allTxIds.push(...result.txIds);
-    hasNextPage = result.hasNextPage;
-    cursor = result.nextCursor;
+    const { protocol } = getQueryFilters();
 
-    console.log(`Discovered ${result.txIds.length} prompts. Total: ${allTxIds.length}`);
+    const query = `
+      query($owner: String!, $cursor: String) {
+        transactions(
+          owners: [$owner]
+          tags: [
+            { name: "Protocol", values: ["${protocol}"] }
+            { name: "Type", values: ["prompt"] }
+          ]
+          sort: HEIGHT_DESC
+          first: 100
+          after: $cursor
+        ) {
+          pageInfo {
+            hasNextPage
+          }
+          edges {
+            cursor
+            node {
+              id
+              tags {
+                name
+                value
+              }
+              block {
+                height
+                timestamp
+              }
+            }
+          }
+        }
+      }
+    `;
 
-    // Safety limit to prevent infinite loops
-    if (allTxIds.length > 10000) {
-      console.warn('Reached safety limit of 10000 prompts');
+    try {
+      const result: GraphQLTransactionsResponse = await executeGraphQLQuery(query, {
+        owner: walletAddress,
+        cursor
+      });
+
+      const { edges, pageInfo } = result.data.transactions;
+      allEdges.push(...edges);
+      hasNextPage = pageInfo.hasNextPage;
+      cursor = edges.length > 0 ? edges[edges.length - 1].cursor : null;
+
+      console.log(`Discovered ${edges.length} transactions. Total: ${allEdges.length}`);
+
+      // Safety limit to prevent infinite loops
+      if (allEdges.length > 10000) {
+        console.warn('Reached safety limit of 10000 transactions');
+        break;
+      }
+    } catch (error) {
+      console.error('[GraphQL] Query error:', error);
       break;
     }
   }
 
-  return allTxIds;
+  // Group by Prompt-Id and keep only the latest version (highest block height)
+  const promptMap = new Map<string, { txId: string; height: number }>();
+
+  for (const edge of allEdges) {
+    const promptId = edge.node.tags.find(t => t.name === 'Prompt-Id')?.value;
+    if (!promptId) continue; // Skip if no Prompt-Id tag
+
+    const height = edge.node.block?.height ?? 0;
+    const existing = promptMap.get(promptId);
+
+    // Keep this transaction if it's the first or has a higher block height
+    if (!existing || height > existing.height) {
+      promptMap.set(promptId, { txId: edge.node.id, height });
+    }
+  }
+
+  const latestTxIds = Array.from(promptMap.values()).map(v => v.txId);
+  console.log(`[QueryAllUserPrompts] Filtered ${allEdges.length} transactions to ${latestTxIds.length} latest prompts`);
+
+  return latestTxIds;
 }
 
 /**
