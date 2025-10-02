@@ -2,6 +2,7 @@ import { TurboFactory, ArconnectSigner } from '@ardrive/turbo-sdk/web';
 import type { Prompt, ArweaveUploadResult } from '@/shared/types/prompt';
 import { prepareContentForUpload, prepareContentForDisplay, shouldEncrypt, clearEncryptionCache } from '@/core/encryption/crypto';
 import { getUploadTags, getQueryFilters } from '@/backend/config/arweave';
+import type { KeyfileWalletConnector } from '@/backend/services/wallets/KeyfileWalletConnector';
 
 const ARWEAVE_GATEWAY = 'https://arweave.net';
 
@@ -883,11 +884,25 @@ export function getArweaveWallet(): any | null {
 
 /**
  * Get active wallet address
+ * Supports both browser extension wallets (ArConnect/Wander) and keyfile wallets
  */
 export async function getWalletAddress(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
-  const arweaveWallet = getArweaveWallet();
 
+  // First, try to get wallet from the store (supports all wallet types including keyfile)
+  try {
+    const { useWallet } = await import('@/frontend/hooks/useWallet');
+    const walletState = useWallet.getState();
+
+    if (walletState.wallet && walletState.connected) {
+      return await walletState.wallet.getWalletAddress();
+    }
+  } catch (error) {
+    console.warn('[getWalletAddress] Could not access wallet store:', error);
+  }
+
+  // Fallback to legacy ArConnect wallet for backward compatibility
+  const arweaveWallet = getArweaveWallet();
   if (!arweaveWallet) return null;
 
   try {
@@ -899,13 +914,44 @@ export async function getWalletAddress(): Promise<string | null> {
 
 /**
  * Get wallet JWK for signing
+ * Supports both browser extension wallets (ArConnect/Wander) and keyfile wallets
  */
 export async function getWalletJWK(): Promise<any> {
   if (typeof window === 'undefined') throw new Error('Not in browser');
-  const arweaveWallet = (window as any).arweaveWallet;
 
+  // First, try to get wallet from the store (supports all wallet types including keyfile)
+  try {
+    const { useWallet } = await import('@/frontend/hooks/useWallet');
+    const walletState = useWallet.getState();
+
+    if (walletState.wallet && walletState.connected) {
+      // For keyfile wallets, return the actual JWK
+      if (walletState.walletType === 'Keyfile') {
+        const keyfileConnector = walletState.wallet as unknown as KeyfileWalletConnector;
+        const jwk = keyfileConnector.getJWK();
+        if (jwk) {
+          return jwk;
+        }
+      }
+
+      // For other wallet types, return the turboSigner if available
+      if (walletState.wallet.turboSigner) {
+        return walletState.wallet.turboSigner;
+      }
+
+      // Otherwise return the contractSigner
+      if (walletState.wallet.contractSigner) {
+        return walletState.wallet.contractSigner;
+      }
+    }
+  } catch (error) {
+    console.warn('[getWalletJWK] Could not access wallet store:', error);
+  }
+
+  // Fallback to legacy ArConnect wallet for backward compatibility
+  const arweaveWallet = (window as any).arweaveWallet;
   if (!arweaveWallet) {
-    throw new Error('ArConnect not available');
+    throw new Error('No wallet available');
   }
 
   // Note: ArConnect doesn't expose the actual JWK for security
