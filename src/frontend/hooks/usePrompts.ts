@@ -286,7 +286,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
 
       if (result.success) {
         // Notify upload started
-        const { onUploadStart, onUploadComplete } = get();
+        const { onUploadStart } = get();
         if (onUploadStart) {
           onUploadStart(result.id, `${prompt.title} (archived)`);
         }
@@ -356,7 +356,7 @@ export const usePrompts = create<PromptsState>((set, get) => ({
 
       if (result.success) {
         // Notify upload started
-        const { onUploadStart, onUploadComplete } = get();
+        const { onUploadStart } = get();
         if (onUploadStart) {
           onUploadStart(result.id, `${prompt.title} (restored)`);
         }
