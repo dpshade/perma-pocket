@@ -120,8 +120,7 @@ export function PasswordUnlock({
           <Alert>
             <Lock className="h-4 w-4" />
             <AlertDescription className="text-sm">
-              Your password is only stored in memory for this session. You'll need to re-enter it
-              when you reconnect your wallet.
+              Your password will be remembered for this wallet on this device. You won't need to re-enter it when you reconnect.
             </AlertDescription>
           </Alert>
 

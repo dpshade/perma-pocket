@@ -28,10 +28,11 @@ import { isTransactionConfirmed } from '@/backend/api/collections';
 import { Badge } from '@/frontend/components/ui/badge';
 import type { Prompt, PromptVersion } from '@/shared/types/prompt';
 import { searchPrompts } from '@/core/search';
-import { evaluateExpression } from '@/core/search/boolean';
+import { evaluateExpression, expressionToString } from '@/core/search/boolean';
 import type { FileImportResult } from '@/shared/utils/import';
 import { getViewMode, saveViewMode, hasEncryptedPromptsInCache } from '@/core/storage/cache';
 import type { EncryptedData } from '@/core/encryption/crypto';
+import { wasPromptEncrypted } from '@/core/encryption/crypto';
 import { findDuplicates } from '@/core/validation/duplicates';
 import { parseDeepLink, updateDeepLink, urlParamToExpression } from '@/frontend/utils/deepLinks';
 
@@ -45,7 +46,12 @@ function App() {
   });
 
   const { address, connected } = useWallet();
-  const { password, setPassword, hasPassword } = usePassword();
+  const { password, setPassword, hasPassword, setWalletAddress, isLoadingPassword } = usePassword();
+
+  // Update password context when wallet address changes
+  useEffect(() => {
+    setWalletAddress(address);
+  }, [address, setWalletAddress]);
   const {
     prompts,
     loading,
@@ -151,6 +157,7 @@ function App() {
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const [deepLinkInitialized, setDeepLinkInitialized] = useState(false);
+  const passwordCheckDone = useRef(false);
 
   // Track grid columns for keyboard navigation
   const [gridColumns, setGridColumns] = useState(1);
@@ -225,9 +232,6 @@ function App() {
     if (!deepLinkInitialized) return;
 
     const timeoutId = setTimeout(() => {
-      const { expressionToString } = require('@/core/search/boolean');
-      const { wasPromptEncrypted } = require('@/core/encryption/crypto');
-
       // If viewing a public prompt, use txid instead of prompt id
       let txidParam: string | undefined;
       if (viewDialogOpen && selectedPrompt && selectedPrompt.currentTxId) {
@@ -270,10 +274,72 @@ function App() {
     saveViewMode(newMode);
   };
 
+  // Reset password check when wallet disconnects
+  useEffect(() => {
+    if (!connected) {
+      console.log('[App] Wallet disconnected, resetting password check flag');
+      passwordCheckDone.current = false;
+    }
+  }, [connected]);
+
+  // Close password dialogs if password becomes available
+  useEffect(() => {
+    if (hasPassword) {
+      console.log('[App] Password available, closing any open password dialogs');
+      setPasswordPromptOpen(false);
+      setPasswordUnlockOpen(false);
+      setSampleEncryptedData(null);
+    }
+  }, [hasPassword]);
+
   // Determine which password dialog to show when wallet connects
   useEffect(() => {
     const checkForEncryptedPrompts = async () => {
-      if (!connected || hasPassword) return;
+      console.log('[App] checkForEncryptedPrompts:', {
+        connected,
+        isLoadingPassword,
+        hasPassword,
+        passwordCheckDone: passwordCheckDone.current,
+        address
+      });
+
+      // Wait for password loading to complete before checking
+      if (!connected || isLoadingPassword) {
+        console.log('[App] Skipping - not connected or still loading');
+        return;
+      }
+
+      // Check localStorage SYNCHRONOUSLY to avoid race condition with PasswordContext
+      // The PasswordContext useEffect might not have run yet, so we check directly
+      if (address) {
+        const storageKey = `pocket-prompt-encryption-key-${address}`;
+        try {
+          const storedPassword = localStorage.getItem(storageKey);
+          if (storedPassword) {
+            console.log('[App] Password found in localStorage, skipping dialog');
+            passwordCheckDone.current = true;
+            return;
+          }
+        } catch (err) {
+          console.error('[App] Error checking localStorage:', err);
+        }
+      }
+
+      // If password was loaded from storage (via React state), don't show dialog
+      if (hasPassword) {
+        console.log('[App] Password already loaded in state, marking check done');
+        passwordCheckDone.current = true;
+        return;
+      }
+
+      // Only check once per connection
+      if (passwordCheckDone.current) {
+        console.log('[App] Password check already done for this connection');
+        return;
+      }
+
+      console.log('[App] No password found anywhere, checking for encrypted prompts...');
+      passwordCheckDone.current = true;
 
       // Check if user has existing encrypted prompts
       const hasEncrypted = hasEncryptedPromptsInCache();
@@ -316,7 +382,7 @@ function App() {
     };
 
     checkForEncryptedPrompts();
-  }, [connected, hasPassword]);
+  }, [connected, hasPassword, isLoadingPassword, address]);
 
   // Load prompts after password is set
   useEffect(() => {

@@ -81,7 +81,7 @@ export function PasswordPrompt({ open, onPasswordSet, onCancel }: PasswordPrompt
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-sm">
             <strong>Critical:</strong> If you lose this password, your encrypted prompts cannot be
-            recovered. There is no password reset mechanism.
+            recovered. There is no password reset mechanism. Your password will be remembered for this wallet on this device.
           </AlertDescription>
         </Alert>
 
