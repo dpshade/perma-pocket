@@ -15,6 +15,7 @@ import { PasswordUnlock } from '@/frontend/components/wallet/PasswordUnlock';
 import { ThemeToggle } from '@/frontend/components/shared/ThemeToggle';
 import { InstallPrompt } from '@/frontend/components/pwa/InstallPrompt';
 import { PublicPromptView } from '@/frontend/components/prompts/PublicPromptView';
+import { ExportDialog } from '@/frontend/components/export/ExportDialog';
 import { Button } from '@/frontend/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/frontend/components/ui/tooltip';
 import { useWallet } from '@/frontend/hooks/useWallet';
@@ -148,6 +149,8 @@ function App() {
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportPromptsData, setExportPromptsData] = useState<{ prompts: Prompt[]; sourceFilter?: string; sourceType: 'filter' | 'collection' | 'manual' }>({ prompts: [], sourceType: 'manual' });
   const [notificationsDialogOpen, setNotificationsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>(() => getViewMode());
   const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);

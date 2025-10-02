@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import type { DragEvent } from 'react';
-import { Upload, FolderUp, FileText, CheckCircle, AlertCircle, ArrowLeft, AlertTriangle, Copy } from 'lucide-react';
+import { Upload, FolderUp, FileText, CheckCircle, AlertCircle, ArrowLeft, AlertTriangle, Copy, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog';
 import { Button } from '@/frontend/components/ui/button';
 import { Badge } from '@/frontend/components/ui/badge';
+import { Input } from '@/frontend/components/ui/input';
 import { importMarkdownDirectory, type FileImportResult } from '@/shared/utils/import';
 import { estimatePromptUploadSize, formatBytes, getSizeWarningLevel } from '@/core/validation/fileSize';
+import { importManifest } from '@/backend/api/manifest';
 import type { Prompt } from '@/shared/types/prompt';
 
 interface UploadDialogProps {
@@ -24,6 +26,9 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [fileSizes, setFileSizes] = useState<Map<string, number>>(new Map());
   const [duplicateIds, setDuplicateIds] = useState<Set<string>>(new Set());
+  const [manifestTxId, setManifestTxId] = useState('');
+  const [manifestError, setManifestError] = useState<string | null>(null);
+  const [manifestProgress, setManifestProgress] = useState<{ current: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,6 +52,9 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
     setFileSizes(new Map());
     setDuplicateIds(new Set());
     setIsProcessing(false);
+    setManifestTxId('');
+    setManifestError(null);
+    setManifestProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (folderInputRef.current) folderInputRef.current.value = '';
   };
@@ -266,6 +274,91 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
   const handleClose = () => {
     resetState();
     onOpenChange(false);
+  };
+
+  const handleManifestImport = async () => {
+    if (!manifestTxId.trim()) {
+      setManifestError('Please enter a manifest transaction ID');
+      return;
+    }
+
+    setIsProcessing(true);
+    setManifestError(null);
+    setManifestProgress(null);
+
+    try {
+      // Fetch manifest and all prompts
+      const result = await importManifest(
+        manifestTxId.trim(),
+        undefined, // Password - TODO: Handle encrypted prompts
+        (current, total) => {
+          setManifestProgress({ current, total });
+        }
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to import manifest');
+      }
+
+      // Check for encrypted prompts
+      const encryptedPrompts = result.prompts.filter(p => p.isEncrypted);
+      if (encryptedPrompts.length > 0) {
+        console.warn(`[Manifest Import] ${encryptedPrompts.length} encrypted prompts detected`);
+        // TODO: Show warning dialog and request password
+      }
+
+      // Convert manifest import results to FileImportResult format
+      const fileResults: FileImportResult[] = result.prompts
+        .filter(p => p.success && p.prompt)
+        .map(p => ({
+          fileName: p.path,
+          success: true,
+          prompt: {
+            id: p.prompt!.id,
+            title: p.prompt!.title,
+            description: p.prompt!.description,
+            content: typeof p.prompt!.content === 'string' ? p.prompt!.content : '[Encrypted]',
+            tags: p.prompt!.tags,
+            createdAt: p.prompt!.createdAt,
+            updatedAt: p.prompt!.updatedAt,
+          },
+        }));
+
+      // Add failed imports
+      const failedResults: FileImportResult[] = result.prompts
+        .filter(p => !p.success)
+        .map(p => ({
+          fileName: p.path,
+          success: false,
+          error: p.error || 'Failed to fetch prompt',
+        }));
+
+      const allResults = [...fileResults, ...failedResults];
+
+      if (allResults.length === 0) {
+        setManifestError('No prompts found in manifest');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Show preview
+      setPreview(allResults);
+
+      // Auto-select successfully imported prompts
+      const validIds = new Set(
+        allResults
+          .filter(r => r.success && r.prompt)
+          .map(r => r.prompt!.id)
+      );
+      setSelectedIds(validIds);
+      setManifestProgress(null);
+    } catch (error) {
+      console.error('[Manifest Import] Failed:', error);
+      setManifestError(error instanceof Error ? error.message : 'Failed to import manifest');
+      setManifestProgress(null);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Preview mode (either from file upload or initial prompts)
@@ -500,7 +593,7 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
           </div>
 
           {/* Manual Selection Buttons */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Button
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
@@ -526,6 +619,79 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
                 <div className="text-xs text-muted-foreground">All .md files</div>
               </div>
             </Button>
+
+            <Button
+              variant="outline"
+              disabled={isProcessing}
+              className="h-24 flex flex-col gap-2"
+              onClick={() => {
+                // Scroll to manifest input section
+                const manifestSection = document.getElementById('manifest-import-section');
+                if (manifestSection) {
+                  manifestSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+            >
+              <Package className="h-6 w-6" />
+              <div className="space-y-0.5">
+                <div className="font-medium">From Manifest</div>
+                <div className="text-xs text-muted-foreground">Arweave TxID</div>
+              </div>
+            </Button>
+          </div>
+
+          {/* Manifest Import Section */}
+          <div id="manifest-import-section" className="rounded-lg border border-border/50 bg-muted/30 p-4 space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <h4 className="text-sm font-medium">Import from Manifest</h4>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enter an Arweave transaction ID for a prompt collection manifest
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter manifest TxID (e.g., abc123xyz...)"
+                value={manifestTxId}
+                onChange={(e) => {
+                  setManifestTxId(e.target.value);
+                  setManifestError(null);
+                }}
+                disabled={isProcessing}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleManifestImport}
+                disabled={isProcessing || !manifestTxId.trim()}
+              >
+                {isProcessing ? 'Loading...' : 'Import'}
+              </Button>
+            </div>
+
+            {manifestProgress && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Fetching prompts...</span>
+                  <span>{manifestProgress.current} / {manifestProgress.total}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${(manifestProgress.current / manifestProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {manifestError && (
+              <div className="flex items-start gap-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <p>{manifestError}</p>
+              </div>
+            )}
           </div>
 
           {/* Hidden File Inputs */}
