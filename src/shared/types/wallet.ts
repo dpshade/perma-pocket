@@ -1,7 +1,7 @@
 /**
  * Wallet type identifiers for multi-wallet support
  */
-export type WALLET_TYPES = 'Wander' | 'ArweaveApp' | 'Beacon';
+export type WALLET_TYPES = 'Wander' | 'ArweaveApp' | 'Beacon' | 'Keyfile';
 
 /**
  * Arweave address type (base64url encoded string)
