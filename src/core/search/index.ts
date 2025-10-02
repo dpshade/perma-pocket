@@ -1,13 +1,18 @@
 import { Document } from 'flexsearch';
 import type { Prompt } from '@/shared/types/prompt';
 
-// Create FlexSearch document index
+// Create FlexSearch document index with field-specific resolution for better relevance
+// Higher resolution = better precision and higher ranking for that field
 let promptIndex = new Document({
   document: {
     id: 'id',
-    index: ['title', 'description', 'content', 'tags'],
+    index: [
+      { field: 'tags', tokenize: 'strict', resolution: 9 },      // Highest priority: exact tag matches
+      { field: 'title', tokenize: 'forward', resolution: 9 },    // High priority: title matches
+      { field: 'description', tokenize: 'forward', resolution: 5 }, // Medium priority
+      { field: 'content', tokenize: 'forward', resolution: 3 },  // Lower priority: content is longer/less specific
+    ],
   },
-  tokenize: 'forward',
   cache: true,
 });
 
@@ -22,9 +27,13 @@ export function indexPrompts(prompts: Prompt[]): void {
   promptIndex = new Document({
     document: {
       id: 'id',
-      index: ['title', 'description', 'content', 'tags'],
+      index: [
+        { field: 'tags', tokenize: 'strict', resolution: 9 },
+        { field: 'title', tokenize: 'forward', resolution: 9 },
+        { field: 'description', tokenize: 'forward', resolution: 5 },
+        { field: 'content', tokenize: 'forward', resolution: 3 },
+      ],
     },
-    tokenize: 'forward',
     cache: true,
   });
   indexedIds.clear();
@@ -76,11 +85,16 @@ export function removeFromIndex(promptId: string): void {
   }
 }
 
+export interface SearchResult {
+  id: string;
+  score: number;
+}
+
 /**
  * Search prompts by query
- * Returns array of prompt IDs
+ * Returns array of search results with IDs and scores, sorted by relevance
  */
-export function searchPrompts(query: string): string[] {
+export function searchPrompts(query: string): SearchResult[] {
   if (!query.trim()) {
     return [];
   }
@@ -92,22 +106,28 @@ export function searchPrompts(query: string): string[] {
     });
 
     // FlexSearch returns results grouped by field
-    // Flatten and deduplicate prompt IDs
-    const ids = new Set<string>();
+    // Collect IDs with their scores from each field
+    const scoreMap = new Map<string, number>();
 
     results.forEach((fieldResult: any) => {
       if (fieldResult.result) {
         fieldResult.result.forEach((item: any) => {
-          if (typeof item === 'string') {
-            ids.add(item);
-          } else if (item.id) {
-            ids.add(item.id);
+          const id = typeof item === 'string' ? item : item.id;
+          if (id) {
+            // Accumulate scores from all fields where this ID appears
+            // Higher resolution fields naturally contribute higher scores
+            const currentScore = scoreMap.get(id) || 0;
+            const itemScore = typeof item === 'object' && item.score ? item.score : 1;
+            scoreMap.set(id, currentScore + itemScore);
           }
         });
       }
     });
 
-    return Array.from(ids);
+    // Convert to array and sort by score (highest first)
+    return Array.from(scoreMap.entries())
+      .map(([id, score]) => ({ id, score }))
+      .sort((a, b) => b.score - a.score);
   } catch (error) {
     console.error('Search error:', error);
     return [];

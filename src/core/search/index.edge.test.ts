@@ -87,7 +87,7 @@ describe('Search Edge Cases', () => {
 
       expect(() => addToIndex(prompt)).not.toThrow();
       const results = searchPrompts('Rocket');
-      expect(results).toContain('1');
+      expect(results.map(r => r.id)).toContain('1');
     });
 
     it('should handle prompts with null/undefined fields', () => {
@@ -110,9 +110,9 @@ describe('Search Edge Cases', () => {
 
       const results = searchPrompts('Unique Test Prompt XYZ');
       // Should only return once due to deduplication
-      const count = results.filter(id => id === '1').length;
+      const count = results.filter(r => r.id === '1').length;
       expect(count).toBeLessThanOrEqual(1);
-      expect(results).toContain('1');
+      expect(results.map(r => r.id)).toContain('1');
     });
 
     it('should handle removing non-existent prompt', () => {
@@ -196,7 +196,7 @@ describe('Search Edge Cases', () => {
 
     it('should handle partial word search', () => {
       const results = searchPrompts('Reac');
-      expect(results).toContain('1');
+      expect(results.map(r => r.id)).toContain('1');
     });
 
     it('should handle search with multiple words', () => {
@@ -216,13 +216,13 @@ describe('Search Edge Cases', () => {
       addToIndex(prompt);
 
       const results = searchPrompts('18');
-      expect(results).toContain('3');
+      expect(results.map(r => r.id)).toContain('3');
     });
 
     it('should handle search after prompt deletion', () => {
       removeFromIndex('1');
       const results = searchPrompts('React');
-      expect(results).not.toContain('1');
+      expect(results.map(r => r.id)).not.toContain('1');
     });
   });
 
@@ -402,7 +402,7 @@ describe('Search Edge Cases', () => {
       }
 
       const results = searchPrompts('Test');
-      expect(results).toContain('1');
+      expect(results.map(r => r.id)).toContain('1');
     });
 
     it('should handle rapid index updates', () => {
@@ -418,7 +418,7 @@ describe('Search Edge Cases', () => {
       // Add final time
       addToIndex(prompt);
       const results = searchPrompts('Rapid Update Test Unique');
-      expect(results).toContain('rapid-test');
+      expect(results.map(r => r.id)).toContain('rapid-test');
     });
 
     it('should handle large result sets', () => {

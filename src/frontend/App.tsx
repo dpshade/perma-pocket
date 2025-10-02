@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Plus, Archive as ArchiveIcon, Folder, Upload, Copy, Bell } from 'lucide-react';
 import { WalletButton } from '@/frontend/components/wallet/WalletButton';
-import { SearchBar } from '@/frontend/components/search/SearchBar';
+import { SearchBar, type SearchBarHandle } from '@/frontend/components/search/SearchBar';
 import { PromptCard } from '@/frontend/components/prompts/PromptCard';
 import { PromptListItem } from '@/frontend/components/prompts/PromptListItem';
 import { PromptDialog } from '@/frontend/components/prompts/PromptDialog';
@@ -12,6 +12,7 @@ import { NotificationsDialog } from '@/frontend/components/shared/NotificationsD
 import { PasswordPrompt } from '@/frontend/components/wallet/PasswordPrompt';
 import { PasswordUnlock } from '@/frontend/components/wallet/PasswordUnlock';
 import { ThemeToggle } from '@/frontend/components/shared/ThemeToggle';
+import { InstallPrompt } from '@/frontend/components/pwa/InstallPrompt';
 import { Button } from '@/frontend/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/frontend/components/ui/tooltip';
 import { useWallet } from '@/frontend/hooks/useWallet';
@@ -133,6 +134,8 @@ function App() {
   const [passwordUnlockOpen, setPasswordUnlockOpen] = useState(false);
   const [sampleEncryptedData, setSampleEncryptedData] = useState<EncryptedData | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+  const searchBarRef = useRef<SearchBarHandle>(null);
 
   // Track grid columns for keyboard navigation
   const [gridColumns, setGridColumns] = useState(1);
@@ -236,48 +239,62 @@ function App() {
   };
 
   // Filter prompts based on search and tags
-  const filteredPrompts = prompts.filter(prompt => {
-    // Archive filter - mutually exclusive
-    if (showArchived) {
-      // Only show archived prompts
-      if (!prompt.isArchived) return false;
-    } else {
-      // Only show non-archived prompts
-      if (prompt.isArchived) return false;
-    }
+  // Get search results with scores for sorting
+  const searchResults = searchQuery ? searchPrompts(searchQuery) : [];
+  const searchScoreMap = new Map(searchResults.map(r => [r.id, r.score]));
 
-    // Duplicate filter
-    if (showDuplicates) {
-      const duplicateGroups = findDuplicates(prompts);
-      const duplicateIds = new Set(
-        duplicateGroups.flatMap(group => group.prompts.map(p => p.id))
-      );
-      if (!duplicateIds.has(prompt.id)) return false;
-    }
+  const filteredPrompts = prompts
+    .filter(prompt => {
+      // Archive filter - mutually exclusive
+      if (showArchived) {
+        // Only show archived prompts
+        if (!prompt.isArchived) return false;
+      } else {
+        // Only show non-archived prompts
+        if (prompt.isArchived) return false;
+      }
 
-    // Boolean expression filter (takes precedence over simple tag filter)
-    if (booleanExpression) {
-      if (!evaluateExpression(booleanExpression, prompt.tags)) return false;
-    } else if (selectedTags.length > 0) {
-      // Simple tag filter (only applies if no boolean expression)
-      const hasAllTags = selectedTags.every(tag =>
-        prompt.tags.some(t => t.toLowerCase() === tag.toLowerCase())
-      );
-      if (!hasAllTags) return false;
-    }
+      // Duplicate filter
+      if (showDuplicates) {
+        const duplicateGroups = findDuplicates(prompts);
+        const duplicateIds = new Set(
+          duplicateGroups.flatMap(group => group.prompts.map(p => p.id))
+        );
+        if (!duplicateIds.has(prompt.id)) return false;
+      }
 
-    // Text search filter (works with both boolean and simple tag filters)
-    if (searchQuery) {
-      const searchIds = searchPrompts(searchQuery);
-      if (!searchIds.includes(prompt.id)) return false;
-    }
+      // Boolean expression filter (takes precedence over simple tag filter)
+      if (booleanExpression) {
+        if (!evaluateExpression(booleanExpression, prompt.tags)) return false;
+      } else if (selectedTags.length > 0) {
+        // Simple tag filter (only applies if no boolean expression)
+        const hasAllTags = selectedTags.every(tag =>
+          prompt.tags.some(t => t.toLowerCase() === tag.toLowerCase())
+        );
+        if (!hasAllTags) return false;
+      }
 
-    return true;
-  });
+      // Text search filter (works with both boolean and simple tag filters)
+      if (searchQuery) {
+        if (!searchScoreMap.has(prompt.id)) return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      // When searching, sort by FlexSearch relevance score
+      if (searchQuery && searchScoreMap.size > 0) {
+        const scoreA = searchScoreMap.get(a.id) || 0;
+        const scoreB = searchScoreMap.get(b.id) || 0;
+        return scoreB - scoreA; // Higher score first
+      }
+      // Default sort by updatedAt (most recent first)
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
 
   // Reset selected index when filtered prompts change
   useEffect(() => {
-    setSelectedIndex(0);
+    setSelectedIndex(-1);
   }, [filteredPrompts.length, searchQuery, selectedTags, booleanExpression, showArchived]);
 
   // Scroll selected item into view
@@ -351,7 +368,11 @@ function App() {
           if (blockingDialogOpen) return;
           if (!isSearchInput && isTyping) return;
           event.preventDefault();
-          if (viewMode === 'list') {
+          // If in search input, move to first result and blur search
+          if (isSearchInput) {
+            setSelectedIndex(0);
+            searchBarRef.current?.blurSearchInput();
+          } else if (viewMode === 'list') {
             // List view: go to next item
             setSelectedIndex((prev) => (prev + 1) % numResults);
           } else {
@@ -367,15 +388,28 @@ function App() {
           if (blockingDialogOpen) return;
           if (!isSearchInput && isTyping) return;
           event.preventDefault();
+
           if (viewMode === 'list') {
-            // List view: go to previous item
-            setSelectedIndex((prev) => (prev - 1 + numResults) % numResults);
+            // List view: if at top item (index 0), focus search input and unfocus results
+            if (selectedIndex === 0) {
+              searchBarRef.current?.focusSearchInput();
+              setSelectedIndex(-1);
+            } else {
+              // Go to previous item
+              setSelectedIndex((prev) => (prev - 1 + numResults) % numResults);
+            }
           } else {
-            // Grid view: go up one row
-            setSelectedIndex((prev) => {
-              const next = prev - gridColumns;
-              return next >= 0 ? next : prev;
-            });
+            // Grid view: if in top row, focus search input and unfocus results
+            if (selectedIndex < gridColumns) {
+              searchBarRef.current?.focusSearchInput();
+              setSelectedIndex(-1);
+            } else {
+              // Go up one row
+              setSelectedIndex((prev) => {
+                const next = prev - gridColumns;
+                return next >= 0 ? next : prev;
+              });
+            }
           }
           break;
         case 'ArrowLeft':
@@ -447,20 +481,9 @@ function App() {
     setEditorOpen(true);
   };
 
-  const handleView = async (prompt: Prompt) => {
-    // Fetch fresh data from Arweave to get complete version history
-    if (prompt.currentTxId) {
-      const freshPrompt = await import('@/backend/api/client').then(m =>
-        m.fetchPrompt(prompt.currentTxId, password || undefined)
-      );
-      if (freshPrompt) {
-        setSelectedPrompt(freshPrompt);
-      } else {
-        setSelectedPrompt(prompt); // Fallback to cached version
-      }
-    } else {
-      setSelectedPrompt(prompt);
-    }
+  const handleView = (prompt: Prompt) => {
+    // Open dialog immediately with cached data for instant response
+    setSelectedPrompt(prompt);
     setViewDialogOpen(true);
   };
 
@@ -472,6 +495,9 @@ function App() {
 
   const handleCopy = (prompt: Prompt) => {
     navigator.clipboard.writeText(prompt.content);
+    setCopiedPromptId(prompt.id);
+    // Keep overlay visible long enough for fade-out animation (1000ms visible + 300ms fade-out)
+    setTimeout(() => setCopiedPromptId(null), 1300);
   };
 
   const handleSave = async (data: Partial<Prompt>) => {
@@ -577,13 +603,13 @@ function App() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 py-3 sm:py-4">
-          <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
-            <Folder className="h-6 w-6 text-primary" />
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 sm:px-4 md:px-0 py-4 sm:py-4">
+          <h1 className="flex items-center gap-2.5 sm:gap-2 text-lg font-bold sm:text-xl md:text-2xl">
+            <Folder className="h-6 w-6 sm:h-6 sm:w-6 text-primary" />
             <span className="sm:hidden">Pocket</span>
             <span className="hidden sm:inline">Pocket Prompt</span>
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -591,8 +617,9 @@ function App() {
                     size="icon"
                     variant="ghost"
                     onClick={() => setUploadDialogOpen(true)}
+                    className="h-10 w-10 sm:h-9 sm:w-9"
                   >
-                    <Upload className="h-4 w-4" />
+                    <Upload className="h-5 w-5 sm:h-4 sm:w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -609,13 +636,13 @@ function App() {
                       setNotificationsDialogOpen(true);
                       notifications.markAllAsRead();
                     }}
-                    className="relative"
+                    className="relative h-10 w-10 sm:h-9 sm:w-9"
                   >
-                    <Bell className="h-4 w-4" />
+                    <Bell className="h-5 w-5 sm:h-4 sm:w-4" />
                     {notifications.unreadCount > 0 && (
                       <Badge
                         variant="destructive"
-                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
+                        className="absolute -top-0.5 -right-0.5 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
                       >
                         {notifications.unreadCount > 9 ? '9+' : notifications.unreadCount}
                       </Badge>
@@ -628,7 +655,7 @@ function App() {
               </Tooltip>
             </TooltipProvider>
 
-            <WalletButton />
+            <WalletButton onSetPassword={() => setPasswordPromptOpen(true)} />
             <ThemeToggle />
           </div>
         </div>
@@ -638,6 +665,7 @@ function App() {
       <main className="space-y-2 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
         <section className="mx-auto flex max-w-6xl flex-col gap-4">
           <SearchBar
+            ref={searchBarRef}
             showArchived={showArchived}
             setShowArchived={setShowArchived}
             viewMode={viewMode}
@@ -688,13 +716,14 @@ function App() {
                 return filteredPrompts.length !== totalActive && !showArchived ? ` of ${totalActive} total` : '';
               })()}
             </div>
-            {viewMode === 'list' ? (
+            {viewMode === 'list' || window.innerWidth < 640 ? (
           <div className="border border-border rounded-lg overflow-hidden bg-card">
             {filteredPrompts.map((prompt, index) => (
               <div key={`${prompt.id}-${index}`} data-prompt-index={index}>
                 <PromptListItem
                   prompt={prompt}
                   isSelected={index === selectedIndex}
+                  isCopied={copiedPromptId === prompt.id}
                   onView={() => handleView(prompt)}
                   onEdit={() => handleEdit(prompt)}
                   onArchive={() => archivePrompt(prompt.id, password || undefined)}
@@ -706,12 +735,13 @@ function App() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="hidden sm:grid grid-cols-2 gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {filteredPrompts.map((prompt, index) => (
               <div key={`${prompt.id}-${index}`} data-prompt-index={index}>
                 <PromptCard
                   prompt={prompt}
                   isSelected={index === selectedIndex}
+                  isCopied={copiedPromptId === prompt.id}
                   onView={() => handleView(prompt)}
                   onEdit={() => handleEdit(prompt)}
                   onArchive={() => archivePrompt(prompt.id, password || undefined)}
@@ -788,12 +818,15 @@ function App() {
       <Button
         onClick={handleCreateNew}
         size="lg"
-        className="fixed bottom-6 right-6 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95 z-50 h-14 w-14 sm:h-12 sm:w-auto sm:px-6"
+        className="fixed bottom-6 right-6 sm:bottom-6 sm:right-6 rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-110 active:scale-95 z-50 h-16 w-16 sm:h-14 sm:w-14 md:h-12 md:w-auto md:px-6 flex items-center justify-center"
         title="Create prompt"
       >
-        <Plus className="h-6 w-6 sm:mr-2" />
-        <span className="hidden sm:inline font-semibold">Prompt</span>
+        <Plus className="h-7 w-7 sm:h-6 sm:w-6 md:mr-2 flex-shrink-0" />
+        <span className="hidden md:inline font-semibold">Prompt</span>
       </Button>
+
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { SavedSearchesDialog } from '@/frontend/components/search/SavedSearchesD
 import { usePrompts } from '@/frontend/hooks/usePrompts';
 import { getAllTags } from '@/core/search';
 import { expressionToString } from '@/core/search/boolean';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import type { BooleanExpression, SavedSearch } from '@/shared/types/prompt';
 import type { UseCollectionsReturn } from '@/frontend/hooks/useCollections';
 import { BooleanBuilder } from '@/frontend/components/search/BooleanBuilder';
@@ -22,14 +22,18 @@ interface SearchBarProps {
   collections: UseCollectionsReturn;
 }
 
-export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeToggle, showDuplicates, setShowDuplicates, collections }: SearchBarProps) {
+export interface SearchBarHandle {
+  focusSearchInput: () => void;
+  blurSearchInput: () => void;
+}
+
+export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArchived, setShowArchived, viewMode, onViewModeToggle, showDuplicates, setShowDuplicates, collections }, ref) => {
   const {
     prompts,
     searchQuery,
     setSearchQuery,
     selectedTags,
     toggleTag,
-    clearFilters,
     booleanExpression,
     activeSavedSearch,
     setBooleanExpression,
@@ -42,6 +46,16 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
   const [expressionText, setExpressionText] = useState('');
   const [savedSearchesDialogOpen, setSavedSearchesDialogOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    focusSearchInput: () => {
+      searchInputRef.current?.focus();
+    },
+    blurSearchInput: () => {
+      searchInputRef.current?.blur();
+    }
+  }));
 
   useEffect(() => {
     const tags = getAllTags(prompts);
@@ -77,8 +91,6 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const hasActiveFilters = searchQuery.length > 0 || selectedTags.length > 0 || booleanExpression !== null;
-
   const handleLoadSavedSearch = (search: SavedSearch) => {
     loadSavedSearch(search);
   };
@@ -93,35 +105,35 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
 
   return (
     <div className="space-y-3">
-      <div className="border border-border/50 bg-muted/90 rounded-md p-2 space-y-2">
+      <div className="border border-border/50 bg-muted/30 rounded-lg p-3 sm:p-2 space-y-2">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 sm:left-3 top-1/2 h-5 w-5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchInputRef}
             type="text"
             placeholder={booleanExpression ? 'Additional text filter…' : 'Search prompts…'}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            className="h-8 w-full border-0 bg-transparent pl-10 pr-16 text-sm focus-visible:ring-0 py-0"
+            className="h-11 sm:h-8 w-full border-0 bg-transparent pl-11 sm:pl-10 pr-20 sm:pr-16 text-base sm:text-sm focus-visible:ring-0 py-0"
           />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-1">
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="rounded-full p-1 text-muted-foreground transition-all hover:text-foreground"
+                className="rounded-full p-1.5 sm:p-1 text-muted-foreground transition-all hover:text-foreground active:scale-95"
                 title="Clear search"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
             )}
             <Button
               variant={booleanExpression || showBooleanBuilder ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setShowBooleanBuilder((open) => !open)}
-              className="h-7 w-7 p-0"
+              className="h-8 w-8 sm:h-7 sm:w-7 p-0"
               title="Filter builder"
             >
-              <Filter className="h-3.5 w-3.5" />
+              <Filter className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             </Button>
           </div>
         </div>
@@ -132,10 +144,10 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
               className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground cursor-pointer pt-2 border-t border-border/30"
               onClick={() => setShowTagSuggestions(!showTagSuggestions)}
             >
-              <div className="font-medium text-foreground transition-colors hover:text-primary text-xs px-2 py-1">
+              <div className="font-medium text-foreground transition-colors hover:text-primary text-[13px] sm:text-xs px-2 py-1.5 sm:py-1">
                 {showTagSuggestions ? 'Hide tag filters' : 'Show tag filters'} ({allTags.length} {tagLabel})
               </div>
-              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
                 {selectedTags.length > 0 && (
                   <button
                     onClick={() => {
@@ -143,7 +155,7 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
                       setExpressionText(tagsExpression);
                       setShowBooleanBuilder(true);
                     }}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                    className="text-[13px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
                     title="Click to edit filter"
                   >
                     Filtering by {selectedTags.length} {selectedTags.length === 1 ? 'tag' : 'tags'}
@@ -153,25 +165,29 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
                   size="sm"
                   variant="ghost"
                   onClick={() => setSavedSearchesDialogOpen(true)}
-                  className="h-7 w-7 p-0 text-muted-foreground"
+                  className="h-8 w-8 sm:h-7 sm:w-7 p-0 text-muted-foreground"
                   title="Collections"
                 >
-                  <Bookmark className="h-3.5 w-3.5" />
+                  <Bookmark className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </Button>
                 <Button
                   variant={showArchived ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setShowArchived(!showArchived)}
-                  className={`h-7 w-7 p-0 ${showArchived ? '' : 'text-muted-foreground'}`}
+                  className={`h-8 w-8 sm:h-7 sm:w-7 p-0 ${showArchived ? '' : 'text-muted-foreground'}`}
                   title={showArchived ? 'Hide archived' : 'Show archived'}
                 >
-                  <Archive className="h-3.5 w-3.5" />
+                  <Archive className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={onViewModeToggle}
-                  className="hidden sm:flex h-7 w-7 p-0"
+                  onClick={(e) => {
+                    onViewModeToggle();
+                    // Blur the button to prevent focus outline during keyboard navigation
+                    (e.currentTarget as HTMLButtonElement).blur();
+                  }}
+                  className="hidden md:flex h-7 w-7 p-0"
                   title={viewMode === 'list' ? 'Switch to cards view' : 'Switch to list view'}
                 >
                   {viewMode === 'list' ? (
@@ -184,20 +200,20 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
             </div>
 
             {showTagSuggestions && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5 sm:gap-2">
                 {allTags.length > 0 ? (
                   allTags.map((tag) => (
                     <Badge
                       key={tag}
                       variant={selectedTags.includes(tag) ? 'default' : 'outline'}
-                      className="cursor-pointer rounded-full px-3 text-xs transition-colors hover:bg-primary hover:text-primary-foreground"
+                      className="cursor-pointer rounded-full px-3.5 sm:px-3 py-1.5 sm:py-1 text-[13px] sm:text-xs transition-colors hover:bg-primary hover:text-primary-foreground active:scale-95"
                       onClick={() => toggleTag(tag)}
                     >
                       {tag}
                     </Badge>
                   ))
                 ) : (
-                  <div className="text-xs text-muted-foreground">No tags yet. Add tags to your prompts!</div>
+                  <div className="text-[13px] sm:text-xs text-muted-foreground">No tags yet. Add tags to your prompts!</div>
                 )}
               </div>
             )}
@@ -271,4 +287,4 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
       />
     </div>
   );
-}
+});

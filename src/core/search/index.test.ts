@@ -74,12 +74,12 @@ describe('Search Functionality', () => {
     it('should index prompts', () => {
       indexPrompts(mockPrompts);
       const results = searchPrompts('React');
-      expect(results).toContain('prompt-1');
+      expect(results.map(r => r.id)).toContain('prompt-1');
     });
 
     it('should not index archived prompts', () => {
       const results = searchPrompts('Archived');
-      expect(results).not.toContain('prompt-4');
+      expect(results.map(r => r.id)).not.toContain('prompt-4');
     });
 
     it('should add prompt to index', () => {
@@ -99,35 +99,35 @@ describe('Search Functionality', () => {
 
       addToIndex(newPrompt);
       const results = searchPrompts('New');
-      expect(results).toContain('prompt-5');
+      expect(results.map(r => r.id)).toContain('prompt-5');
     });
 
     it('should remove prompt from index', () => {
       removeFromIndex('prompt-1');
       const results = searchPrompts('React');
-      expect(results).not.toContain('prompt-1');
+      expect(results.map(r => r.id)).not.toContain('prompt-1');
     });
   });
 
   describe('Searching', () => {
     it('should search by title', () => {
       const results = searchPrompts('React');
-      expect(results).toContain('prompt-1');
+      expect(results.map(r => r.id)).toContain('prompt-1');
     });
 
     it('should search by description', () => {
       const results = searchPrompts('Advanced');
-      expect(results).toContain('prompt-2');
+      expect(results.map(r => r.id)).toContain('prompt-2');
     });
 
     it('should search by content', () => {
       const results = searchPrompts('functional components');
-      expect(results).toContain('prompt-1');
+      expect(results.map(r => r.id)).toContain('prompt-1');
     });
 
     it('should search by tags', () => {
       const results = searchPrompts('typescript');
-      expect(results).toContain('prompt-2');
+      expect(results.map(r => r.id)).toContain('prompt-2');
     });
 
     it('should return empty array for no results', () => {
@@ -142,7 +142,26 @@ describe('Search Functionality', () => {
 
     it('should handle case-insensitive search', () => {
       const results = searchPrompts('REACT');
-      expect(results).toContain('prompt-1');
+      expect(results.map(r => r.id)).toContain('prompt-1');
+    });
+
+    it('should return results with scores', () => {
+      const results = searchPrompts('React');
+      expect(results.length).toBeGreaterThan(0);
+      results.forEach(result => {
+        expect(result).toHaveProperty('id');
+        expect(result).toHaveProperty('score');
+        expect(typeof result.score).toBe('number');
+      });
+    });
+
+    it('should sort results by score (highest first)', () => {
+      const results = searchPrompts('javascript');
+      expect(results.length).toBeGreaterThan(1);
+      // Verify descending order
+      for (let i = 1; i < results.length; i++) {
+        expect(results[i - 1].score).toBeGreaterThanOrEqual(results[i].score);
+      }
     });
   });
 

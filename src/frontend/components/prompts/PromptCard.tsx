@@ -4,12 +4,12 @@ import { Button } from '@/frontend/components/ui/button';
 import { Badge } from '@/frontend/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/frontend/components/ui/tooltip';
 import type { Prompt } from '@/shared/types/prompt';
-import { useState } from 'react';
 import { wasPromptEncrypted } from '@/core/encryption/crypto';
 
 interface PromptCardProps {
   prompt: Prompt;
   isSelected?: boolean;
+  isCopied?: boolean;
   onView: () => void;
   onEdit: () => void;
   onArchive: () => void;
@@ -17,15 +17,12 @@ interface PromptCardProps {
   onCopy: () => void;
 }
 
-export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchive, onRestore, onCopy }: PromptCardProps) {
-  const [copied, setCopied] = useState(false);
+export function PromptCard({ prompt, isSelected = false, isCopied = false, onView, onEdit, onArchive, onRestore, onCopy }: PromptCardProps) {
   const isEncrypted = wasPromptEncrypted(prompt.tags);
   const isPublic = !isEncrypted;
 
   const handleCopy = () => {
     onCopy();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   };
 
   const formatDateTime = (timestamp: number) => {
@@ -51,10 +48,25 @@ export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchi
 
   return (
     <Card
-      className={`group cursor-pointer md:hover:shadow-lg md:hover:-translate-y-1 transition-all duration-200 active:scale-[0.98] h-[240px] flex flex-col ${copied ? 'ring-2 ring-primary' : ''} ${isSelected ? 'ring-2 ring-primary shadow-lg' : ''}`}
+      className={`group cursor-pointer md:hover:shadow-lg md:hover:-translate-y-1 transition-all duration-200 active:scale-[0.98] h-[240px] flex flex-col relative ${!isCopied && isSelected ? 'ring-2 ring-primary shadow-lg -translate-y-1' : ''}`}
       onClick={handleCopy}
       title="Click to copy"
     >
+      {/* Copy overlay */}
+      {isCopied && (
+        <div
+          className="absolute inset-0 bg-primary/25 backdrop-blur-[2px] rounded-lg z-10 flex items-center justify-center"
+          style={{
+            animation: 'fadeIn 0.15s ease-in, fadeOut 0.25s ease-out 1s forwards'
+          }}
+        >
+          <div className="flex flex-col items-center gap-2">
+            <Check className="h-12 w-12 text-primary animate-in zoom-in duration-300" />
+            <span className="text-sm font-medium text-primary">Copied!</span>
+          </div>
+        </div>
+      )}
+
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -67,9 +79,6 @@ export function PromptCard({ prompt, isSelected = false, onView, onEdit, onArchi
                   <Lock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                 )}
               </span>
-              {copied && (
-                <Check className="h-3.5 w-3.5 text-primary animate-in fade-in zoom-in duration-200" />
-              )}
             </div>
             {getDisplayDescription() && (
               <CardDescription className="line-clamp-2 mt-0.5 text-xs">

@@ -15,7 +15,12 @@
       "Bash(brew install:*)",
       "Read(//private/tmp/**)",
       "Bash(git remote get-url:*)",
-      "Read(//Users/dps/Developer/My Repos/**)"
+      "Read(//Users/dps/Developer/My Repos/**)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(cd:*)",
+      "Read(//Users/dps/Developer/**)",
+      "Bash(convert:*)"
     ],
     "deny": [],
     "ask": []

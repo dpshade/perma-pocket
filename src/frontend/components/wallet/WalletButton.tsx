@@ -1,13 +1,17 @@
 import { useEffect } from 'react';
-import { Wallet, LogOut, Copy, Check } from 'lucide-react';
+import { Wallet, LogOut, Copy, Check, Lock } from 'lucide-react';
 import { Button } from '@/frontend/components/ui/button';
 import { useWallet } from '@/frontend/hooks/useWallet';
 import { usePassword } from '@/frontend/contexts/PasswordContext';
 import { useState } from 'react';
 
-export function WalletButton() {
+interface WalletButtonProps {
+  onSetPassword?: () => void;
+}
+
+export function WalletButton({ onSetPassword }: WalletButtonProps = {}) {
   const { address, connected, connecting, connect, disconnect, checkConnection } = useWallet();
-  const { clearPassword } = usePassword();
+  const { hasPassword, clearPassword } = usePassword();
   const [copied, setCopied] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -25,6 +29,11 @@ export function WalletButton() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleSetPassword = () => {
+    setShowDropdown(false);
+    onSetPassword?.();
   };
 
   const handleDisconnect = () => {
@@ -59,7 +68,7 @@ export function WalletButton() {
       </Button>
 
       {showDropdown && (
-        <div className="absolute right-0 mt-2 w-48 rounded-md border bg-popover text-popover-foreground shadow-md z-50">
+        <div className="absolute right-0 mt-2 w-56 rounded-md border bg-popover text-popover-foreground shadow-md z-50">
           <div className="p-2">
             <button
               onClick={copyAddress}
@@ -77,6 +86,15 @@ export function WalletButton() {
                 </>
               )}
             </button>
+            {!hasPassword && (
+              <button
+                onClick={handleSetPassword}
+                className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+              >
+                <Lock className="mr-2 h-4 w-4" />
+                Set Encryption Password
+              </button>
+            )}
             <button
               onClick={handleDisconnect}
               className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"

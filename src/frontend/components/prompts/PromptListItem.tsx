@@ -3,12 +3,12 @@ import { Button } from '@/frontend/components/ui/button';
 import { Badge } from '@/frontend/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/frontend/components/ui/tooltip';
 import type { Prompt } from '@/shared/types/prompt';
-import { useState } from 'react';
 import { wasPromptEncrypted } from '@/core/encryption/crypto';
 
 interface PromptListItemProps {
   prompt: Prompt;
   isSelected?: boolean;
+  isCopied?: boolean;
   onView: () => void;
   onEdit: () => void;
   onArchive: () => void;
@@ -16,15 +16,12 @@ interface PromptListItemProps {
   onCopy: () => void;
 }
 
-export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onArchive, onRestore, onCopy }: PromptListItemProps) {
-  const [copied, setCopied] = useState(false);
+export function PromptListItem({ prompt, isSelected = false, isCopied = false, onView, onEdit, onArchive, onRestore, onCopy }: PromptListItemProps) {
   const isEncrypted = wasPromptEncrypted(prompt.tags);
   const isPublic = !isEncrypted;
 
   const handleCopy = () => {
     onCopy();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
   };
 
   const formatDateTime = (timestamp: number) => {
@@ -50,61 +47,83 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
 
   return (
     <div
-      className={`group relative border-b border-border py-6 px-4 sm:py-4 md:hover:bg-muted/50 transition-colors cursor-pointer ${copied ? 'bg-primary/5' : ''} ${isSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
+      className={`group relative border-b border-border py-5 px-5 sm:py-4 sm:px-4 md:hover:bg-muted/50 transition-colors cursor-pointer overflow-hidden ${!isCopied && isSelected ? 'bg-primary/3 border-l-4 border-l-primary' : ''}`}
       onClick={handleCopy}
       title="Click to copy"
     >
-      <div className="flex items-start gap-4">
-        {/* Left: Icon - hidden on mobile for cleaner look */}
-        <div className="hidden sm:flex flex-shrink-0 pt-1">
-          <span title={isPublic ? "Public prompt" : "Encrypted prompt"}>
-            {isPublic ? (
-              <Globe className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <Lock className="h-5 w-5 text-muted-foreground" />
-            )}
-          </span>
+      {/* Copy overlay */}
+      {isCopied && (
+        <div
+          className="absolute inset-0 bg-primary/25 backdrop-blur-[2px] z-10 flex items-center justify-center"
+          style={{
+            animation: 'fadeIn 0.15s ease-in, fadeOut 0.25s ease-out 1s forwards'
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Check className="h-8 w-8 text-primary animate-in zoom-in duration-300" />
+            <span className="text-base font-medium text-primary">Copied!</span>
+          </div>
         </div>
+      )}
 
-        {/* Center: Content */}
-        <div className="flex-1 min-w-0 space-y-2 pr-32 sm:pr-32">
-          {/* Title */}
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold sm:text-base sm:font-medium text-primary [@media(hover:hover)]:hover:underline truncate">
-              {prompt.title}
-            </h3>
-            {copied && (
-              <Check className="h-4 w-4 text-primary animate-in fade-in zoom-in duration-200 flex-shrink-0" />
-            )}
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+        {/* Top Section: Icon + Content */}
+        <div className="flex items-start gap-2 sm:gap-4 flex-1 min-w-0">
+          {/* Left: Icon - hidden on mobile for cleaner look */}
+          <div className="hidden sm:flex flex-shrink-0 pt-1">
+            <span title={isPublic ? "Public prompt" : "Encrypted prompt"}>
+              {isPublic ? (
+                <Globe className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <Lock className="h-5 w-5 text-muted-foreground" />
+              )}
+            </span>
           </div>
 
-          {/* Description */}
-          {getDisplayDescription() && (
-            <p className="text-sm text-muted-foreground/80 line-clamp-2 sm:line-clamp-1">
-              {getDisplayDescription()}
-            </p>
-          )}
-
-          {/* Tags */}
-          {prompt.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {prompt.tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {prompt.tags.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{prompt.tags.length - 3}
-                </Badge>
-              )}
+          {/* Center: Content */}
+          <div className="flex-1 min-w-0 space-y-2.5 sm:space-y-2 sm:pr-32">
+            {/* Title */}
+            <div className="flex items-center gap-2">
+              {/* Show icon inline on mobile */}
+              <span className="sm:hidden flex-shrink-0" title={isPublic ? "Public prompt" : "Encrypted prompt"}>
+                {isPublic ? (
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                )}
+              </span>
+              <h3 className="text-base font-semibold sm:text-base sm:font-medium text-primary [@media(hover:hover)]:hover:underline truncate">
+                {prompt.title}
+              </h3>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Actions - Bottom Right */}
-      <div className="absolute bottom-4 right-4 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-background/95 backdrop-blur-sm rounded-md p-1 shadow-sm">
+            {/* Description */}
+            {getDisplayDescription() && (
+              <p className="text-[15px] sm:text-sm text-muted-foreground/80 line-clamp-2 sm:line-clamp-1 leading-relaxed">
+                {getDisplayDescription()}
+              </p>
+            )}
+
+            {/* Tags */}
+            {prompt.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 sm:gap-1.5 pt-1">
+                {prompt.tags.slice(0, 3).map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-[13px] sm:text-xs px-2.5 sm:px-2 py-1 sm:py-0.5">
+                    {tag}
+                  </Badge>
+                ))}
+                {prompt.tags.length > 3 && (
+                  <Badge variant="outline" className="text-[13px] sm:text-xs px-2.5 sm:px-2 py-1 sm:py-0.5">
+                    +{prompt.tags.length - 3}
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actions - Horizontal Bottom (Mobile), Horizontal Bottom Right (Desktop) */}
+        <div className="flex sm:absolute flex-row gap-2 sm:gap-1 sm:top-auto sm:translate-y-0 sm:bottom-4 sm:right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity sm:bg-background/95 sm:backdrop-blur-sm sm:rounded-lg pt-2 sm:pt-0 p-0 sm:p-1 sm:shadow-lg sm:border sm:border-border/50 md:border-0 w-full sm:w-auto">
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -115,9 +134,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                   e.stopPropagation();
                   onView();
                 }}
-                className="h-11 w-11 md:h-8 md:w-8 p-0"
+                className="h-9 flex-1 sm:flex-initial sm:h-10 sm:w-10 md:h-8 md:w-8 p-0 active:scale-95 transition-transform"
               >
-                <ExternalLink className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                <ExternalLink className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-3.5 md:w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -136,9 +155,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                       e.stopPropagation();
                       onEdit();
                     }}
-                    className="h-11 w-11 md:h-8 md:w-8 p-0"
+                    className="h-9 flex-1 sm:flex-initial sm:h-10 sm:w-10 md:h-8 md:w-8 p-0 active:scale-95 transition-transform"
                   >
-                    <Edit className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                    <Edit className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-3.5 md:w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -155,9 +174,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                       e.stopPropagation();
                       onArchive();
                     }}
-                    className="h-11 w-11 md:h-8 md:w-8 p-0"
+                    className="h-9 flex-1 sm:flex-initial sm:h-10 sm:w-10 md:h-8 md:w-8 p-0 active:scale-95 transition-transform"
                   >
-                    <Archive className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                    <Archive className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-3.5 md:w-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -175,9 +194,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                     e.stopPropagation();
                     onRestore();
                   }}
-                  className="h-11 w-11 md:h-8 md:w-8 p-0"
+                  className="h-9 flex-1 sm:flex-initial sm:h-10 sm:w-10 md:h-8 md:w-8 p-0 active:scale-95 transition-transform"
                 >
-                  <ArchiveRestore className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                  <ArchiveRestore className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-3.5 md:w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -192,9 +211,9 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
                 size="sm"
                 variant="ghost"
                 onClick={(e) => e.stopPropagation()}
-                className="h-11 w-11 md:h-8 md:w-8 p-0"
+                className="h-9 flex-1 sm:flex-initial sm:h-10 sm:w-10 md:h-8 md:w-8 p-0 active:scale-95 transition-transform"
               >
-                <Info className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                <Info className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-3.5 md:w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top" align="end" className="text-xs p-3">
@@ -220,6 +239,7 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+      </div>
       </div>
     </div>
   );
