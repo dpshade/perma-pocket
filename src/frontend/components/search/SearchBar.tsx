@@ -1,4 +1,4 @@
-import { Search, X, Filter, Bookmark, Archive, LayoutGrid, List, Share2, Check } from 'lucide-react';
+import { Search, X, Filter, Bookmark, Archive, LayoutGrid, List, Share2, Check, Package } from 'lucide-react';
 import { Input } from '@/frontend/components/ui/input';
 import { Badge } from '@/frontend/components/ui/badge';
 import { Button } from '@/frontend/components/ui/button';
@@ -21,6 +21,7 @@ interface SearchBarProps {
   showDuplicates: boolean;
   setShowDuplicates: (show: boolean) => void;
   collections: UseCollectionsReturn;
+  onExport?: () => void;
 }
 
 export interface SearchBarHandle {
@@ -28,7 +29,7 @@ export interface SearchBarHandle {
   blurSearchInput: () => void;
 }
 
-export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArchived, setShowArchived, viewMode, onViewModeToggle, showDuplicates, setShowDuplicates, collections }, ref) => {
+export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArchived, setShowArchived, viewMode, onViewModeToggle, showDuplicates, setShowDuplicates, collections, onExport }, ref) => {
   const {
     prompts,
     searchQuery,
@@ -288,6 +289,17 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
                     <Share2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                   )}
                 </Button>
+                {onExport && (searchQuery || selectedTags.length > 0 || booleanExpression || activeSavedSearch) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={onExport}
+                    className="h-8 w-8 sm:h-7 sm:w-7 p-0 text-muted-foreground hover:text-primary"
+                    title="Export filtered results as manifest"
+                  >
+                    <Package className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                  </Button>
+                )}
                 <Button
                   variant={showArchived ? 'default' : 'ghost'}
                   size="sm"

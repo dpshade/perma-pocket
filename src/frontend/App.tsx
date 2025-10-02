@@ -696,6 +696,17 @@ function App() {
     window.history.replaceState({}, '', url.pathname);
   };
 
+  const handleExport = () => {
+    // Prepare export data using current filteredPrompts
+    setExportPromptsData({
+      prompts: filteredPrompts,
+      sourceFilter: booleanExpression ? expressionToString(booleanExpression) : undefined,
+      sourceType: activeSavedSearch ? 'collection' : booleanExpression || selectedTags.length > 0 || searchQuery ? 'filter' : 'manual',
+    });
+
+    setExportDialogOpen(true);
+  };
+
   const handleBatchImport = async (selectedPrompts: FileImportResult[]) => {
     let imported = 0;
     let updated = 0;
@@ -866,6 +877,7 @@ function App() {
             showDuplicates={showDuplicates}
             setShowDuplicates={setShowDuplicates}
             collections={collections}
+            onExport={connected ? handleExport : undefined}
           />
           {showArchived && (
             <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/30 px-4 py-2.5 text-sm">
@@ -1017,6 +1029,17 @@ function App() {
         <Plus className="h-7 w-7 sm:h-6 sm:w-6 md:mr-2 flex-shrink-0" />
         <span className="hidden md:inline font-semibold">Prompt</span>
       </Button>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        prompts={exportPromptsData.prompts}
+        arweaveWallet={arweaveWallet}
+        password={password || undefined}
+        sourceFilter={exportPromptsData.sourceFilter}
+        sourceType={exportPromptsData.sourceType}
+      />
 
       {/* PWA Install Prompt */}
       <InstallPrompt />
