@@ -46,6 +46,9 @@ export function MobileMenu({ onUploadClick, onExportClick, onNotificationsClick,
         <DropdownMenuItem onClick={onExportClick}>
           <Package className="mr-2 h-4 w-4" />
           <span>Export Collection</span>
+          <Badge variant="secondary" className="ml-auto h-4 px-1.5 text-[9px] font-medium">
+            BETA
+          </Badge>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onNotificationsClick} className="relative">
           <Bell className="mr-2 h-4 w-4" />

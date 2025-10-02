@@ -812,13 +812,19 @@ function App() {
                     size="icon"
                     variant="ghost"
                     onClick={() => setExportDialogOpen(true)}
-                    className="hidden sm:flex h-9 w-9"
+                    className="hidden sm:flex h-9 w-9 relative"
                   >
                     <Package className="h-4 w-4" />
+                    <Badge
+                      variant="secondary"
+                      className="absolute -top-1 -right-1 h-4 px-1 text-[9px] font-medium"
+                    >
+                      BETA
+                    </Badge>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Export Collection</p>
+                  <p>Export Collection (Experimental)</p>
                 </TooltipContent>
               </Tooltip>
 

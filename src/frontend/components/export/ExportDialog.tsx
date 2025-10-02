@@ -180,6 +180,15 @@ export function ExportDialog({
 
   const renderSelection = () => (
     <div className="flex flex-col h-full max-h-[70vh]">
+      {/* Experimental notice */}
+      <Alert className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <AlertTitle className="text-blue-900 dark:text-blue-100">Experimental Feature</AlertTitle>
+        <AlertDescription className="text-blue-800 dark:text-blue-200">
+          This export feature is currently in beta. Please test thoroughly before relying on it for critical workflows.
+        </AlertDescription>
+      </Alert>
+
       {/* Search and selection controls */}
       <div className="flex-none space-y-3 pb-4 border-b">
         <div className="relative">
