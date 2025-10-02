@@ -9,6 +9,7 @@ import { PromptEditor } from '@/frontend/components/prompts/PromptEditor';
 import { VersionHistory } from '@/frontend/components/prompts/VersionHistory';
 import { UploadDialog } from '@/frontend/components/shared/UploadDialog';
 import { NotificationsDialog } from '@/frontend/components/shared/NotificationsDialog';
+import { MobileMenu } from '@/frontend/components/shared/MobileMenu';
 import { PasswordPrompt } from '@/frontend/components/wallet/PasswordPrompt';
 import { PasswordUnlock } from '@/frontend/components/wallet/PasswordUnlock';
 import { ThemeToggle } from '@/frontend/components/shared/ThemeToggle';
@@ -718,6 +719,7 @@ function App() {
             <span className="hidden sm:inline">Pocket Prompt</span>
           </h1>
           <div className="flex items-center gap-2 sm:gap-2">
+            {/* Desktop buttons - hidden on mobile */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -725,9 +727,9 @@ function App() {
                     size="icon"
                     variant="ghost"
                     onClick={() => setUploadDialogOpen(true)}
-                    className="h-10 w-10 sm:h-9 sm:w-9"
+                    className="hidden sm:flex h-9 w-9"
                   >
-                    <Upload className="h-5 w-5 sm:h-4 sm:w-4" />
+                    <Upload className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -744,9 +746,9 @@ function App() {
                       setNotificationsDialogOpen(true);
                       notifications.markAllAsRead();
                     }}
-                    className="relative h-10 w-10 sm:h-9 sm:w-9"
+                    className="relative hidden sm:flex h-9 w-9"
                   >
-                    <Bell className="h-5 w-5 sm:h-4 sm:w-4" />
+                    <Bell className="h-4 w-4" />
                     {notifications.unreadCount > 0 && (
                       <Badge
                         variant="destructive"
@@ -763,8 +765,22 @@ function App() {
               </Tooltip>
             </TooltipProvider>
 
+            {/* Desktop theme toggle */}
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
+
             <WalletButton onSetPassword={() => setPasswordPromptOpen(true)} />
-            <ThemeToggle />
+
+            {/* Mobile menu - shown only on mobile */}
+            <MobileMenu
+              onUploadClick={() => setUploadDialogOpen(true)}
+              onNotificationsClick={() => {
+                setNotificationsDialogOpen(true);
+                notifications.markAllAsRead();
+              }}
+              unreadCount={notifications.unreadCount}
+            />
           </div>
         </div>
       </header>

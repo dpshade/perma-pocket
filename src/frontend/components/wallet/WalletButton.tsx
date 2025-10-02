@@ -85,7 +85,7 @@ export function WalletButton({ onSetPassword }: WalletButtonProps = {}) {
       </Button>
 
       {showDropdown && (
-        <div className="absolute right-0 mt-2 w-56 rounded-md border bg-popover text-popover-foreground shadow-md z-50">
+        <div className="absolute right-0 mt-0.5 w-56 rounded-md border bg-popover text-popover-foreground shadow-md z-50">
           <div className="p-2">
             <button
               onClick={copyAddress}

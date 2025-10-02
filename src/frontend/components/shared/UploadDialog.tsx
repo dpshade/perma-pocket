@@ -293,9 +293,9 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
 
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
           {/* Header - Sticky */}
-          <DialogHeader className="flex-none">
+          <DialogHeader className="flex-none px-6 pt-6 pb-4 rounded-t-lg">
             <DialogTitle className="flex items-center justify-between">
               <span>Review Prompts ({successCount} parsed, {selectedCount} selected)</span>
               {!initialPrompts && (
@@ -308,7 +308,7 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
           </DialogHeader>
 
           {/* Stats - Sticky */}
-          <div className="flex gap-2 flex-wrap flex-none pb-4">
+          <div className="flex gap-2 flex-wrap flex-none pb-4 px-6 border-b">
             {newCount > 0 && (
               <Badge variant="default">{newCount} new</Badge>
             )}
@@ -330,7 +330,7 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
           </div>
 
           {/* Prompt List - Scrollable Content */}
-          <div className="flex-1 overflow-y-auto space-y-2 border rounded-lg p-4">
+          <div className="flex-1 overflow-y-auto space-y-2 px-6 py-4">
             {preview.map((result, index) => {
               const isSelected = result.prompt && selectedIds.has(result.prompt.id);
               const willUpdate = result.prompt && existingPromptIds.includes(result.prompt.id);
@@ -429,7 +429,7 @@ export function UploadDialog({ open, onOpenChange, onImport, existingPromptIds, 
           </div>
 
           {/* Actions - Sticky Footer */}
-          <div className="flex justify-between items-center border-t pt-4 flex-none">
+          <div className="flex justify-between items-center border-t pt-4 pb-4 px-6 flex-none rounded-b-lg">
             <div className="text-sm text-muted-foreground">
               {selectedCount} of {successCount} prompts selected
             </div>

@@ -107,7 +107,7 @@ export function PromptDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
         {/* Sticky Header */}
-        <div className="flex-none px-6 pt-6 pb-4 border-b bg-background">
+        <div className="flex-none px-6 pt-6 pb-4 border-b bg-background rounded-t-lg">
           <DialogHeader className="text-left">
             <div className="flex flex-col gap-2">
               <div className="flex flex-col gap-2">
@@ -188,7 +188,7 @@ export function PromptDialog({
         </div>
 
         {/* Sticky Actions */}
-        <div className="flex gap-1 sm:gap-2 justify-end border-t pt-4 pb-4 px-4 sm:px-6 bg-background flex-shrink-0">
+        <div className="flex gap-1 sm:gap-2 justify-end border-t pt-4 pb-4 px-4 sm:px-6 bg-background flex-shrink-0 rounded-b-lg">
           <Button
             variant="outline"
             onClick={handleCopy}
