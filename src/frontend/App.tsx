@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Plus, Archive as ArchiveIcon, Upload, Copy, Bell } from 'lucide-react';
+import { Plus, Archive as ArchiveIcon, Upload, Copy, Bell, Package } from 'lucide-react';
 import { WalletButton } from '@/frontend/components/wallet/WalletButton';
 import { SearchBar, type SearchBarHandle } from '@/frontend/components/search/SearchBar';
 import { PromptCard } from '@/frontend/components/prompts/PromptCard';
@@ -150,7 +150,6 @@ function App() {
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [exportPromptsData, setExportPromptsData] = useState<{ prompts: Prompt[]; sourceFilter?: string; sourceType: 'filter' | 'collection' | 'manual' }>({ prompts: [], sourceType: 'manual' });
   const [notificationsDialogOpen, setNotificationsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>(() => getViewMode());
   const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
@@ -696,16 +695,6 @@ function App() {
     window.history.replaceState({}, '', url.pathname);
   };
 
-  const handleExport = () => {
-    // Prepare export data using current filteredPrompts
-    setExportPromptsData({
-      prompts: filteredPrompts,
-      sourceFilter: booleanExpression ? expressionToString(booleanExpression) : undefined,
-      sourceType: activeSavedSearch ? 'collection' : booleanExpression || selectedTags.length > 0 || searchQuery ? 'filter' : 'manual',
-    });
-
-    setExportDialogOpen(true);
-  };
 
   const handleBatchImport = async (selectedPrompts: FileImportResult[]) => {
     let imported = 0;
@@ -822,6 +811,22 @@ function App() {
                   <Button
                     size="icon"
                     variant="ghost"
+                    onClick={() => setExportDialogOpen(true)}
+                    className="hidden sm:flex h-9 w-9"
+                  >
+                    <Package className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Export Collection</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
                     onClick={() => {
                       setNotificationsDialogOpen(true);
                       notifications.markAllAsRead();
@@ -855,6 +860,7 @@ function App() {
             {/* Mobile menu - shown only on mobile */}
             <MobileMenu
               onUploadClick={() => setUploadDialogOpen(true)}
+              onExportClick={() => setExportDialogOpen(true)}
               onNotificationsClick={() => {
                 setNotificationsDialogOpen(true);
                 notifications.markAllAsRead();
@@ -877,7 +883,6 @@ function App() {
             showDuplicates={showDuplicates}
             setShowDuplicates={setShowDuplicates}
             collections={collections}
-            onExport={connected ? handleExport : undefined}
           />
           {showArchived && (
             <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/30 px-4 py-2.5 text-sm">
@@ -1034,11 +1039,9 @@ function App() {
       <ExportDialog
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
-        prompts={exportPromptsData.prompts}
+        allPrompts={prompts}
         arweaveWallet={arweaveWallet}
         password={password || undefined}
-        sourceFilter={exportPromptsData.sourceFilter}
-        sourceType={exportPromptsData.sourceType}
       />
 
       {/* PWA Install Prompt */}

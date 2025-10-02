@@ -1,4 +1,4 @@
-import { MoreVertical, Upload, Bell, Sun, Moon } from 'lucide-react';
+import { MoreVertical, Upload, Bell, Sun, Moon, Package } from 'lucide-react';
 import { Button } from '@/frontend/components/ui/button';
 import { Badge } from '@/frontend/components/ui/badge';
 import {
@@ -11,11 +11,12 @@ import { useTheme } from '@/frontend/hooks/useTheme';
 
 interface MobileMenuProps {
   onUploadClick: () => void;
+  onExportClick: () => void;
   onNotificationsClick: () => void;
   unreadCount: number;
 }
 
-export function MobileMenu({ onUploadClick, onNotificationsClick, unreadCount }: MobileMenuProps) {
+export function MobileMenu({ onUploadClick, onExportClick, onNotificationsClick, unreadCount }: MobileMenuProps) {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -41,6 +42,10 @@ export function MobileMenu({ onUploadClick, onNotificationsClick, unreadCount }:
         <DropdownMenuItem onClick={onUploadClick}>
           <Upload className="mr-2 h-4 w-4" />
           <span>Upload Files</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onExportClick}>
+          <Package className="mr-2 h-4 w-4" />
+          <span>Export Collection</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onNotificationsClick} className="relative">
           <Bell className="mr-2 h-4 w-4" />
