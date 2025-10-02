@@ -12,7 +12,8 @@
       "Bash(bun test:*)",
       "WebFetch(domain:qnczm2vsjbf6f5xg3dcftlsl2paawqldxckfkierg2ccs6jnhg7a.arweave.net)",
       "Bash(node:*)",
-      "Bash(brew install:*)"
+      "Bash(brew install:*)",
+      "Read(//private/tmp/**)"
     ],
     "deny": [],
     "ask": []

@@ -199,9 +199,19 @@ export const usePrompts = create<PromptsState>((set, get) => ({
 
       const jwk = await getWalletJWK();
 
+      // Fetch fresh version history from Arweave before updating
+      let freshPrompt = existingPrompt;
+      if (existingPrompt.currentTxId) {
+        const fetched = await fetchPrompt(existingPrompt.currentTxId, password);
+        if (fetched) {
+          freshPrompt = fetched;
+          console.log(`[UpdatePrompt] Fetched fresh version history: ${freshPrompt.versions.length} versions`);
+        }
+      }
+
       // Create new version
       const updatedPrompt: Prompt = {
-        ...existingPrompt,
+        ...freshPrompt, // Use fresh data with complete version history
         ...updates,
         updatedAt: Date.now(),
       };
@@ -218,14 +228,14 @@ export const usePrompts = create<PromptsState>((set, get) => ({
         onUploadStart(result.id, updatedPrompt.title);
       }
 
-      // Update version history - handle case where versions might be empty
+      // Update version history with complete data from Arweave
       updatedPrompt.currentTxId = result.id;
-      const existingVersions = existingPrompt.versions && existingPrompt.versions.length > 0
-        ? existingPrompt.versions
+      const existingVersions = freshPrompt.versions && freshPrompt.versions.length > 0
+        ? freshPrompt.versions
         : [{
-            txId: existingPrompt.currentTxId || '',
+            txId: freshPrompt.currentTxId || '',
             version: 1,
-            timestamp: existingPrompt.createdAt || Date.now(),
+            timestamp: freshPrompt.createdAt || Date.now(),
           }];
 
       const nextVersion = Math.max(...existingVersions.map(v => v.version || 1)) + 1;

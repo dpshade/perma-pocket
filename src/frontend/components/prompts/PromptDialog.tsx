@@ -25,6 +25,13 @@ export function PromptDialog({
 }: PromptDialogProps) {
   const [copied, setCopied] = useState(false);
 
+  // Check if prompt has version history based on the latest version number
+  const hasVersionHistory = (prompt: Prompt | null) => {
+    if (!prompt || !prompt.versions || prompt.versions.length === 0) return false;
+    const latestVersion = prompt.versions[prompt.versions.length - 1];
+    return latestVersion && latestVersion.version > 1;
+  };
+
   // Keyboard shortcuts for the dialog
   useEffect(() => {
     if (!open || !prompt) return;
@@ -122,9 +129,9 @@ export function PromptDialog({
                   </p>
                 )}
               </div>
-              {prompt.versions.length > 0 && (
+              {hasVersionHistory(prompt) && (
                 <Badge variant="secondary" className="mr-8">
-                  v{prompt.versions[prompt.versions.length - 1]?.version || prompt.versions.length}
+                  v{prompt.versions[prompt.versions.length - 1]?.version}
                 </Badge>
               )}
             </div>
@@ -189,14 +196,14 @@ export function PromptDialog({
             )}
           </Button>
 
-          {prompt.versions.length > 0 && (
+          {hasVersionHistory(prompt) && (
             <Button
               variant="outline"
               onClick={onShowVersions}
-              title={prompt.versions.length === 1 ? 'View version details' : 'View version history'}
+              title="View version history"
             >
               <History className="mr-2 h-4 w-4" />
-              {prompt.versions.length === 1 ? 'Version Info' : 'Version History'}
+              Version History
             </Button>
           )}
 

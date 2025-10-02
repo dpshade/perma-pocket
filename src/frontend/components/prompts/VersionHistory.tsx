@@ -33,6 +33,21 @@ export function VersionHistory({
 
   if (!prompt) return null;
 
+  // Deduplicate versions - keep only the latest transaction for each version number
+  const uniqueVersions = prompt.versions.reduce((acc: PromptVersion[], curr: PromptVersion) => {
+    const existingIndex = acc.findIndex(v => v.version === curr.version);
+    if (existingIndex === -1) {
+      // New version number, add it
+      acc.push(curr);
+    } else {
+      // Duplicate version number, keep the one with the latest timestamp
+      if (curr.timestamp > acc[existingIndex].timestamp) {
+        acc[existingIndex] = curr;
+      }
+    }
+    return acc;
+  }, []);
+
   const handleViewVersion = async (version: PromptVersion, index: number) => {
     // Toggle off if clicking the same version
     if (selectedVersionTxId === version.txId) {
@@ -122,8 +137,8 @@ export function VersionHistory({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {prompt.versions.map((version, index) => {
-            const isLatest = index === prompt.versions.length - 1;
+          {uniqueVersions.map((version, index) => {
+            const isLatest = index === uniqueVersions.length - 1;
             return (
               <div
                 key={version.txId}

@@ -50,13 +50,13 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
 
   return (
     <div
-      className={`group relative border-b border-border py-4 px-4 md:hover:bg-muted/50 transition-colors cursor-pointer ${copied ? 'bg-primary/5' : ''} ${isSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
+      className={`group relative border-b border-border py-6 px-4 sm:py-4 md:hover:bg-muted/50 transition-colors cursor-pointer ${copied ? 'bg-primary/5' : ''} ${isSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
       onClick={handleCopy}
       title="Click to copy"
     >
       <div className="flex items-start gap-4">
-        {/* Left: Icon */}
-        <div className="flex-shrink-0 pt-1">
+        {/* Left: Icon - hidden on mobile for cleaner look */}
+        <div className="hidden sm:flex flex-shrink-0 pt-1">
           <span title={isPublic ? "Public prompt" : "Encrypted prompt"}>
             {isPublic ? (
               <Globe className="h-5 w-5 text-muted-foreground" />
@@ -67,10 +67,10 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
         </div>
 
         {/* Center: Content */}
-        <div className="flex-1 min-w-0 space-y-1 pr-32">
+        <div className="flex-1 min-w-0 space-y-2 pr-32 sm:pr-32">
           {/* Title */}
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-medium text-primary hover:underline truncate">
+            <h3 className="text-lg font-semibold sm:text-base sm:font-medium text-primary [@media(hover:hover)]:hover:underline truncate">
               {prompt.title}
             </h3>
             {copied && (
@@ -80,7 +80,7 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
 
           {/* Description */}
           {getDisplayDescription() && (
-            <p className="text-sm text-muted-foreground line-clamp-1">
+            <p className="text-sm text-muted-foreground/80 line-clamp-2 sm:line-clamp-1">
               {getDisplayDescription()}
             </p>
           )}
@@ -88,11 +88,16 @@ export function PromptListItem({ prompt, isSelected = false, onView, onEdit, onA
           {/* Tags */}
           {prompt.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {prompt.tags.map((tag) => (
-                <Badge key={tag} variant="outline" className="text-xs">
+              {prompt.tags.slice(0, 3).map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs">
                   {tag}
                 </Badge>
               ))}
+              {prompt.tags.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{prompt.tags.length - 3}
+                </Badge>
+              )}
             </div>
           )}
         </div>

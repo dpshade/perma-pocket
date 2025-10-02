@@ -447,8 +447,20 @@ function App() {
     setEditorOpen(true);
   };
 
-  const handleView = (prompt: Prompt) => {
-    setSelectedPrompt(prompt);
+  const handleView = async (prompt: Prompt) => {
+    // Fetch fresh data from Arweave to get complete version history
+    if (prompt.currentTxId) {
+      const freshPrompt = await import('@/backend/api/client').then(m =>
+        m.fetchPrompt(prompt.currentTxId, password || undefined)
+      );
+      if (freshPrompt) {
+        setSelectedPrompt(freshPrompt);
+      } else {
+        setSelectedPrompt(prompt); // Fallback to cached version
+      }
+    } else {
+      setSelectedPrompt(prompt);
+    }
     setViewDialogOpen(true);
   };
 
@@ -567,9 +579,9 @@ function App() {
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
           <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
-            <Folder className="h-5 w-5 sm:h-6 sm:w-6" />
+            <Folder className="h-6 w-6 text-primary" />
+            <span className="sm:hidden">Pocket</span>
             <span className="hidden sm:inline">Pocket Prompt</span>
-            <span className="sm:hidden">PktPrmpt</span>
           </h1>
           <div className="flex items-center gap-2">
             <TooltipProvider>

@@ -622,6 +622,50 @@ async function fetchTransactionTags(txId: string): Promise<GraphQLTag[]> {
 }
 
 /**
+ * Query all versions of a prompt by its Prompt-Id
+ * Returns transaction IDs sorted by block height (oldest to newest)
+ */
+async function queryPromptVersions(promptId: string): Promise<GraphQLEdge[]> {
+  const { protocol } = getQueryFilters();
+
+  const query = `
+    query($promptId: String!) {
+      transactions(
+        tags: [
+          { name: "Protocol", values: ["${protocol}"] }
+          { name: "Type", values: ["prompt"] }
+          { name: "Prompt-Id", values: [$promptId] }
+        ]
+        sort: HEIGHT_ASC
+        first: 100
+      ) {
+        edges {
+          node {
+            id
+            tags {
+              name
+              value
+            }
+            block {
+              height
+              timestamp
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const result: GraphQLTransactionsResponse = await executeGraphQLQuery(query, { promptId });
+    return result.data.transactions.edges;
+  } catch (error) {
+    console.error(`[Query Versions] Failed to query versions for prompt ${promptId}:`, error);
+    return [];
+  }
+}
+
+/**
  * Fetch a prompt from Arweave by transaction ID
  */
 export async function fetchPrompt(txId: string, password?: string, skipDecryption = false): Promise<Prompt | null> {
@@ -668,23 +712,62 @@ export async function fetchPrompt(txId: string, password?: string, skipDecryptio
     const versionTag = tags.find(tag => tag.name === 'Version');
     const tagVersion = versionTag ? parseInt(versionTag.value, 10) : 1;
 
+    // Read Prompt-Id from tags
+    const promptIdTag = tags.find(tag => tag.name === 'Prompt-Id');
+    const promptId = promptIdTag?.value || promptData.id;
+
+    // Fetch complete version history from GraphQL
+    let versions: import('@/shared/types/prompt').PromptVersion[] = [];
+
+    if (promptId) {
+      console.log(`[Fetch] ${txId} - Querying version history for Prompt-Id: ${promptId}`);
+      const versionEdges = await queryPromptVersions(promptId);
+
+      if (versionEdges.length > 0) {
+        console.log(`[Fetch] ${txId} - Found ${versionEdges.length} version(s)`);
+        versions = versionEdges.map(edge => {
+          const versionTag = edge.node.tags.find(t => t.name === 'Version');
+          const version = versionTag ? parseInt(versionTag.value, 10) : 1;
+          const timestamp = edge.node.block?.timestamp
+            ? edge.node.block.timestamp * 1000 // Convert to milliseconds
+            : Date.now();
+
+          console.log(`[Fetch] ${txId} - Version ${version}: ${edge.node.id}, timestamp: ${new Date(timestamp).toISOString()}`);
+
+          return {
+            txId: edge.node.id,
+            version,
+            timestamp,
+          };
+        });
+        console.log(`[Fetch] ${txId} - Complete versions array:`, versions);
+      } else {
+        console.log(`[Fetch] ${txId} - No version history found in GraphQL, using fallback`);
+        versions = [{
+          txId,
+          version: tagVersion,
+          timestamp: promptData.updatedAt || promptData.createdAt || Date.now(),
+        }];
+      }
+    } else {
+      // Fallback if no Prompt-Id
+      versions = [{
+        txId,
+        version: tagVersion,
+        timestamp: promptData.updatedAt || promptData.createdAt || Date.now(),
+      }];
+    }
+
     const prompt: Prompt = {
       ...promptData,
       content,
       currentTxId: txId, // Ensure we have the txId we just fetched
-      // Initialize versions array if not present, or ensure it has at least one version
-      versions: promptData.versions && promptData.versions.length > 0
-        ? promptData.versions
-        : [{
-            txId,
-            version: tagVersion,
-            timestamp: promptData.updatedAt || promptData.createdAt || Date.now(),
-          }],
+      versions, // Use the complete version history
       isSynced: true, // If we fetched it from Arweave, it's synced
       isArchived, // Override with tag value from Arweave
     };
 
-    console.log(`[Fetch] ${txId} - SUCCESS (Archived: ${isArchived})`);
+    console.log(`[Fetch] ${txId} - SUCCESS (Version: ${tagVersion}/${versions.length}, Archived: ${isArchived})`);
     return prompt;
   } catch (error) {
     console.error(`[Fetch] ${txId} - FAILED:`, error);

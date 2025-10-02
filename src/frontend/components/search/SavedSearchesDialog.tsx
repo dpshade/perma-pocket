@@ -131,10 +131,10 @@ export function SavedSearchesDialog({
               {collectionsHook.collections.map((search) => (
                 <div
                   key={search.id}
-                  className={`rounded-lg border border-border/70 bg-background/95 px-4 py-3 transition-colors ${
-                    selectedId === search.id ? 'border-primary/60 ring-1 ring-primary/20 bg-primary/5' : 'hover:border-border'
+                  className={`rounded-lg border border-border/70 bg-background/95 px-4 py-3 transition-colors cursor-pointer ${
+                    selectedId === search.id ? 'border-primary/60 ring-1 ring-primary/20 bg-primary/5' : 'hover:border-primary/30'
                   }`}
-                  onClick={() => setSelectedId(search.id)}
+                  onClick={() => handleLoad(search)}
                 >
                 <div className="space-y-3">
                   {/* Header */}

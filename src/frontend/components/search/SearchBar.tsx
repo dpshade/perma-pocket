@@ -220,7 +220,7 @@ export function SearchBar({ showArchived, setShowArchived, viewMode, onViewModeT
                 size="sm"
                 variant="ghost"
                 onClick={onViewModeToggle}
-                className="h-7 w-7 p-0"
+                className="hidden sm:flex h-7 w-7 p-0"
                 title={viewMode === 'list' ? 'Switch to cards view' : 'Switch to list view'}
               >
                 {viewMode === 'list' ? (
