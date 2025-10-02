@@ -223,39 +223,7 @@ export function ExportDialog({
           )}
         </div>
 
-        {/* Visibility filter toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Show:</span>
-          <div className="inline-flex rounded-md border border-border">
-            <Button
-              size="sm"
-              variant={visibilityFilter === 'all' ? 'default' : 'ghost'}
-              onClick={() => setVisibilityFilter('all')}
-              className="h-7 px-3 text-xs rounded-none rounded-l-md border-0"
-            >
-              All
-            </Button>
-            <Button
-              size="sm"
-              variant={visibilityFilter === 'public' ? 'default' : 'ghost'}
-              onClick={() => setVisibilityFilter('public')}
-              className="h-7 px-3 text-xs rounded-none border-0 border-l flex items-center gap-1"
-            >
-              <Globe className="h-3 w-3" />
-              Public
-            </Button>
-            <Button
-              size="sm"
-              variant={visibilityFilter === 'private' ? 'default' : 'ghost'}
-              onClick={() => setVisibilityFilter('private')}
-              className="h-7 px-3 text-xs rounded-none rounded-r-md border-0 border-l flex items-center gap-1"
-            >
-              <Lock className="h-3 w-3" />
-              Private
-            </Button>
-          </div>
-        </div>
-
+        {/* Select All / Clear buttons */}
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={selectAll}>
             Select All ({filteredPrompts.length})
@@ -344,8 +312,40 @@ export function ExportDialog({
 
       {/* Actions */}
       <div className="flex-none pt-4 border-t flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">
-          {selectedIds.size} prompt{selectedIds.size !== 1 ? 's' : ''} selected
+        {/* Visibility filter toggle */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Show:</span>
+          <div className="inline-flex rounded-md border border-border">
+            <Button
+              size="sm"
+              variant={visibilityFilter === 'all' ? 'default' : 'ghost'}
+              onClick={() => setVisibilityFilter('all')}
+              className="h-7 px-3 text-xs rounded-none rounded-l-md border-0"
+            >
+              All
+            </Button>
+            <Button
+              size="sm"
+              variant={visibilityFilter === 'public' ? 'default' : 'ghost'}
+              onClick={() => setVisibilityFilter('public')}
+              className="h-7 px-3 text-xs rounded-none border-0 border-l flex items-center gap-1"
+            >
+              <Globe className="h-3 w-3" />
+              Public
+            </Button>
+            <Button
+              size="sm"
+              variant={visibilityFilter === 'private' ? 'default' : 'ghost'}
+              onClick={() => setVisibilityFilter('private')}
+              className="h-7 px-3 text-xs rounded-none rounded-r-md border-0 border-l flex items-center gap-1"
+            >
+              <Lock className="h-3 w-3" />
+              Private
+            </Button>
+          </div>
+          <Badge variant="secondary">
+            {selectedIds.size} selected
+          </Badge>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleClose}>
