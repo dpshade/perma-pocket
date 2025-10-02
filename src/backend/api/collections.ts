@@ -140,7 +140,7 @@ export async function queryLatestCollections(
           owners: [$owner]
           tags: [
             { name: "App-Name", values: ["Pocket Prompt"] }
-            { name: "Protocol", values: ["Pocket-Prompt-v3.4"] }
+            { name: "Protocol", values: ["Pocket-Prompt-v3.5"] }
             { name: "Type", values: ["collections"] }
           ]
           sort: HEIGHT_DESC

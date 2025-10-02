@@ -663,10 +663,20 @@ export async function fetchPrompt(txId: string, password?: string, skipDecryptio
     const archivedTag = tags.find(tag => tag.name === 'Archived');
     const isArchived = archivedTag?.value === 'true';
 
+    // Read version info from tags
+    const versionTag = tags.find(tag => tag.name === 'Version');
+    const version = versionTag ? parseInt(versionTag.value, 10) : 1;
+
     const prompt: Prompt = {
       ...promptData,
       content,
       currentTxId: txId, // Ensure we have the txId we just fetched
+      // Initialize versions array if not present
+      versions: promptData.versions || [{
+        txId,
+        version,
+        timestamp: promptData.updatedAt || promptData.createdAt || Date.now(),
+      }],
       isSynced: true, // If we fetched it from Arweave, it's synced
       isArchived, // Override with tag value from Arweave
     };

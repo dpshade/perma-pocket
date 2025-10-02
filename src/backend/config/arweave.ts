@@ -40,7 +40,11 @@ export function getDynamicTags(prompt: Prompt, isEncrypted: boolean): ArweaveTag
     } else if (tagConfig.name === 'Updated-At') {
       tags.push({ name: 'Updated-At', value: prompt.updatedAt.toString() });
     } else if (tagConfig.name === 'Version') {
-      tags.push({ name: 'Version', value: prompt.versions.length.toString() });
+      // Calculate version - handle empty versions array
+      const version = prompt.versions && prompt.versions.length > 0
+        ? Math.max(...prompt.versions.map(v => v.version || 1))
+        : 1;
+      tags.push({ name: 'Version', value: version.toString() });
     } else if (tagConfig.name === 'Encrypted') {
       tags.push({ name: 'Encrypted', value: isEncrypted ? 'true' : 'false' });
     } else if (tagConfig.name === 'Archived') {
@@ -74,7 +78,7 @@ export function getUploadTags(prompt: Prompt, isEncrypted: boolean): ArweaveTag[
  */
 export function getProtocolVersion(): string {
   const protocolTag = arweaveConfig.upload.tags.find(tag => tag.name === 'Protocol');
-  return protocolTag?.value || 'Pocket-Prompt-v3.4';
+  return protocolTag?.value || 'Pocket-Prompt-v3.5';
 }
 
 /**
@@ -82,7 +86,7 @@ export function getProtocolVersion(): string {
  */
 export function getQueryFilters() {
   return {
-    protocol: arweaveConfig.query.filters.find(f => f.name === 'Protocol')?.values[0] || 'Pocket-Prompt-v3.4',
+    protocol: arweaveConfig.query.filters.find(f => f.name === 'Protocol')?.values[0] || 'Pocket-Prompt-v3.5',
     appName: arweaveConfig.query.filters.find(f => f.name === 'App-Name')?.values[0] || 'Pocket Prompt',
   };
 }

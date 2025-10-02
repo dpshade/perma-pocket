@@ -218,13 +218,22 @@ export const usePrompts = create<PromptsState>((set, get) => ({
         onUploadStart(result.id, updatedPrompt.title);
       }
 
-      // Update version history
+      // Update version history - handle case where versions might be empty
       updatedPrompt.currentTxId = result.id;
+      const existingVersions = existingPrompt.versions && existingPrompt.versions.length > 0
+        ? existingPrompt.versions
+        : [{
+            txId: existingPrompt.currentTxId || '',
+            version: 1,
+            timestamp: existingPrompt.createdAt || Date.now(),
+          }];
+
+      const nextVersion = Math.max(...existingVersions.map(v => v.version || 1)) + 1;
       updatedPrompt.versions = [
-        ...existingPrompt.versions,
+        ...existingVersions,
         {
           txId: result.id,
-          version: existingPrompt.versions.length + 1,
+          version: nextVersion,
           timestamp: Date.now(),
           changeNote: updates.content ? 'Content updated' : 'Metadata updated',
         },

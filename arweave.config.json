@@ -14,7 +14,7 @@
       },
       {
         "name": "App-Version",
-        "value": "3.4.0",
+        "value": "3.5.0",
         "description": "Application version (semantic versioning: MAJOR.MINOR.PATCH)"
       },
       {
@@ -24,8 +24,8 @@
       },
       {
         "name": "Protocol",
-        "value": "Pocket-Prompt-v3.4",
-        "description": "Protocol identifier for discoverability (v3.4 = collections on Arweave + notifications)"
+        "value": "Pocket-Prompt-v3.5",
+        "description": "Protocol identifier for discoverability (v3.5 = improved version tracking and empty version list fixes)"
       },
       {
         "name": "Data-Protocol",
@@ -46,7 +46,7 @@
       },
       {
         "name": "App-Version",
-        "value": "3.4.0",
+        "value": "3.5.0",
         "description": "Application version"
       },
       {
@@ -56,7 +56,7 @@
       },
       {
         "name": "Protocol",
-        "value": "Pocket-Prompt-v3.4",
+        "value": "Pocket-Prompt-v3.5",
         "description": "Protocol identifier"
       },
       {
@@ -130,8 +130,8 @@
       },
       {
         "name": "Protocol",
-        "values": ["Pocket-Prompt-v3.4"],
-        "description": "Filter by protocol version (v3.4 = collections on Arweave + notifications)"
+        "values": ["Pocket-Prompt-v3.5"],
+        "description": "Filter by protocol version (v3.5 = improved version tracking and empty version list fixes)"
       }
     ],
     "owner": {
