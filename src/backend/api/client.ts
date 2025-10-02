@@ -239,19 +239,27 @@ export async function queryAllUserPrompts(walletAddress: string): Promise<string
     }
   }
 
-  // Group by Prompt-Id and keep only the latest version (highest block height)
-  const promptMap = new Map<string, { txId: string; height: number }>();
+  // Group by Prompt-Id and keep only the latest version (highest block height, then highest version number)
+  const promptMap = new Map<string, { txId: string; height: number; version: number }>();
 
   for (const edge of allEdges) {
     const promptId = edge.node.tags.find(t => t.name === 'Prompt-Id')?.value;
     if (!promptId) continue; // Skip if no Prompt-Id tag
 
     const height = edge.node.block?.height ?? 0;
+    const versionTag = edge.node.tags.find(t => t.name === 'Version');
+    const version = versionTag ? parseInt(versionTag.value, 10) : 1;
+
     const existing = promptMap.get(promptId);
 
-    // Keep this transaction if it's the first or has a higher block height
-    if (!existing || height > existing.height) {
-      promptMap.set(promptId, { txId: edge.node.id, height });
+    // Keep this transaction if:
+    // 1. It's the first one we've seen, OR
+    // 2. It has a higher block height, OR
+    // 3. Same block height but higher version number (handles same-block updates)
+    if (!existing ||
+        height > existing.height ||
+        (height === existing.height && version > existing.version)) {
+      promptMap.set(promptId, { txId: edge.node.id, height, version });
     }
   }
 
@@ -756,6 +764,20 @@ export async function fetchPrompt(txId: string, password?: string, skipDecryptio
         version: tagVersion,
         timestamp: promptData.updatedAt || promptData.createdAt || Date.now(),
       }];
+    }
+
+    // Check if we fetched an old version - if so, fetch the latest version instead
+    // This ensures we always show the newest metadata even when GraphQL indexing lags
+    if (versions.length > 0) {
+      const latestVersion = versions.reduce((latest, v) =>
+        v.version > latest.version ? v : latest
+      );
+
+      if (latestVersion.txId !== txId) {
+        console.log(`[Fetch] ${txId} is version ${tagVersion}, but latest is version ${latestVersion.version} (${latestVersion.txId}). Fetching latest...`);
+        // Recursively fetch the latest version
+        return fetchPrompt(latestVersion.txId, password, skipDecryption);
+      }
     }
 
     const prompt: Prompt = {

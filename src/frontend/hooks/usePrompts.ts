@@ -73,10 +73,14 @@ export const usePrompts = create<PromptsState>((set, get) => ({
       const cachedPrompts: Prompt[] = [];
       const toFetch: string[] = [];
 
-      // Check what we have cached by currentTxId (only latest versions from query)
+      // Check what we have cached by currentTxId or version history
+      // This handles GraphQL indexing lag: if we have a newer version cached,
+      // we'll use it instead of fetching the older version from Arweave
       discoveredTxIds.forEach(txId => {
-        // Find cached prompt by matching currentTxId
-        const cachedPrompt = Object.values(cached).find(p => p.currentTxId === txId);
+        // Find cached prompt by matching currentTxId OR if txId exists in version history
+        const cachedPrompt = Object.values(cached).find(p =>
+          p.currentTxId === txId || p.versions.some(v => v.txId === txId)
+        );
 
         if (cachedPrompt) {
           cachedPrompts.push(cachedPrompt);
