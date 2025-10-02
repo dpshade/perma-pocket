@@ -194,15 +194,6 @@ export function ExportDialog({
 
   const renderSelection = () => (
     <div className="flex flex-col h-full max-h-[70vh]">
-      {/* Experimental notice */}
-      <Alert className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
-        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-        <AlertTitle className="text-blue-900 dark:text-blue-100">Experimental Feature</AlertTitle>
-        <AlertDescription className="text-blue-800 dark:text-blue-200">
-          This export feature is currently in beta. Please test thoroughly before relying on it for critical workflows.
-        </AlertDescription>
-      </Alert>
-
       {/* Search and selection controls */}
       <div className="flex-none space-y-3 pb-4 border-b">
         <div className="relative">
@@ -224,15 +215,20 @@ export function ExportDialog({
         </div>
 
         {/* Select All / Clear buttons */}
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={selectAll}>
-            Select All ({filteredPrompts.length})
-          </Button>
-          {selectedIds.size > 0 && (
-            <Button size="sm" variant="outline" onClick={clearSelection}>
-              Clear Selection
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={selectAll}>
+              Select All ({filteredPrompts.length})
             </Button>
-          )}
+            {selectedIds.size > 0 && (
+              <Button size="sm" variant="outline" onClick={clearSelection}>
+                Clear Selection
+              </Button>
+            )}
+          </div>
+          <Badge variant="secondary">
+            {selectedIds.size} selected
+          </Badge>
         </div>
       </div>
 
@@ -310,6 +306,15 @@ export function ExportDialog({
         </Alert>
       )}
 
+      {/* Experimental notice */}
+      <Alert className="mt-4 border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <AlertTitle className="text-blue-900 dark:text-blue-100">Experimental Feature</AlertTitle>
+        <AlertDescription className="text-blue-800 dark:text-blue-200">
+          This export feature is currently in beta. Please test thoroughly before relying on it for critical workflows.
+        </AlertDescription>
+      </Alert>
+
       {/* Actions */}
       <div className="flex-none pt-4 border-t flex justify-between items-center">
         {/* Visibility filter toggle */}
@@ -343,9 +348,6 @@ export function ExportDialog({
               Private
             </Button>
           </div>
-          <Badge variant="secondary">
-            {selectedIds.size} selected
-          </Badge>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleClose}>
