@@ -191,17 +191,21 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
         size="xl"
         className="flex max-h-[88vh] flex-col"
       >
-        <DialogHeader className="gap-2 text-left">
-          <DialogTitle className="text-xl font-semibold">
-              {prompt ? 'Edit Prompt' : 'Create New Prompt'}
-          </DialogTitle>
-          <DialogDescription className="text-sm text-foreground/70">
-            {prompt ? 'Update your prompt. A new version will be created and uploaded to Arweave.' : 'Craft a new prompt and we’ll prepare it for Arweave (free under 100 KiB).'}
-          </DialogDescription>
+        <DialogHeader className="space-y-4 text-left border-b">
+          <div className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <DialogTitle className="text-3xl sm:text-4xl font-semibold tracking-tight">
+                {prompt ? 'Edit Prompt' : 'Create New Prompt'}
+              </DialogTitle>
+              <DialogDescription className="text-base text-foreground/70 max-w-2xl">
+                {prompt ? 'Update your prompt. A new version will be created and uploaded to Arweave.' : "Craft a new prompt and we'll prepare it for Arweave (free under 100 KiB)."}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <DialogBody className="flex-1 overflow-y-auto space-y-6">
-          <div className="space-y-10">
+        <DialogBody className="flex-1 overflow-y-auto min-h-0">
+          <div className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-foreground/70">Title <span className="text-xs text-foreground/40">*</span></Label>
@@ -220,9 +224,8 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
                   placeholder="Optional short description"
                 />
               </div>
-            </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground/70">Tags</Label>
               <div className="flex gap-2">
                 <Input
@@ -236,7 +239,7 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
                   Add
                 </Button>
               </div>
-              {tags.length > 0 && (
+              {(tags.length > 0 || availableTags.length > 0) && (
                 <div className="flex flex-wrap gap-2">
                   {tags.map(tag => {
                     const isPublicTag = tag.toLowerCase() === 'public';
@@ -254,15 +257,11 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
                       </Badge>
                     );
                   })}
-                </div>
-              )}
-              {availableTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 text-xs text-foreground/60">
                   {availableTags.map(tag => (
                     <Badge
                       key={tag}
                       variant="outline"
-                      className="cursor-pointer px-3 py-1 text-xs"
+                      className="cursor-pointer px-3 py-1 text-xs text-foreground/60"
                       onClick={() => handleAddTag(tag)}
                     >
                       {tag}
@@ -271,8 +270,9 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
                 </div>
               )}
             </div>
+            </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground/70">Content <span className="text-xs text-foreground/40">*</span></Label>
               <Textarea
                 value={content}
@@ -291,8 +291,8 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
               <div
                 className={`rounded-md border px-3 py-2 text-xs leading-relaxed ${
                   willBeEncrypted
-                    ? 'border-primary/30 bg-primary/10 text-primary-foreground'
-                    : 'border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-200'
+                    ? 'border-primary/30 bg-primary/10 text-foreground'
+                    : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
                 }`}
               >
                 {willBeEncrypted ? (
@@ -309,20 +309,23 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
           </div>
         </DialogBody>
 
-        <DialogFooter className="justify-between">
-          <div className="flex items-center gap-2 text-xs text-foreground/70">
+        <DialogFooter className="flex-row justify-between border-t">
+          <div className="flex items-center gap-3">
             <Badge
               variant={willBeEncrypted ? 'default' : 'secondary'}
-              className="flex items-center gap-1.5 px-3 py-1"
+              className="flex items-center gap-1.5 px-3 py-1 text-xs"
+              title={willBeEncrypted
+                ? 'This prompt will be encrypted. Only your wallet can decrypt it.'
+                : 'This prompt will be public. Anyone can read it on Arweave.'}
             >
               {willBeEncrypted ? (
                 <>
-                  <Lock className="h-3 w-3" />
+                  <Lock className="h-3.5 w-3.5" />
                   Encrypted
                 </>
               ) : (
                 <>
-                  <Globe className="h-3 w-3" />
+                  <Globe className="h-3.5 w-3.5" />
                   Public
                 </>
               )}
@@ -332,18 +335,18 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
               variant="ghost"
               size="sm"
               onClick={handleTogglePublic}
-              className="h-8 text-xs"
               title={willBeEncrypted ? 'Make this prompt public' : 'Make this prompt private (encrypted)'}
+              className="gap-2"
             >
               {willBeEncrypted ? (
                 <>
-                  <Globe className="h-3 w-3 mr-1" />
-                  Make Public
+                  <Globe className="h-4 w-4" />
+                  <span className="hidden sm:inline">Make Public</span>
                 </>
               ) : (
                 <>
-                  <Lock className="h-3 w-3 mr-1" />
-                  Make Private
+                  <Lock className="h-4 w-4" />
+                  <span className="hidden sm:inline">Make Private</span>
                 </>
               )}
             </Button>
@@ -354,13 +357,14 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={saving}
+              size="sm"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
               disabled={saving || !title.trim() || !content.trim()}
-              className="min-w-[160px]"
+              size="sm"
             >
               {saving ? 'Saving…' : prompt ? 'Update & Upload' : 'Create & Upload'}
             </Button>

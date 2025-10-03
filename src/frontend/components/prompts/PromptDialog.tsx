@@ -103,6 +103,27 @@ export function PromptDialog({
       <DialogContent size="xl" className="flex max-h-[88vh] flex-col">
         <DialogHeader className="space-y-4 text-left border-b">
           <div className="flex flex-col gap-4">
+              <div className="space-y-2">
+                <DialogTitle className="text-3xl sm:text-4xl font-semibold tracking-tight">
+                  {prompt.title}
+                </DialogTitle>
+                {prompt.description && (
+                  <DialogDescription className="text-base text-foreground/70 max-w-2xl">
+                    {prompt.description}
+                  </DialogDescription>
+                )}
+              </div>
+
+              {prompt.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {prompt.tags.map(tag => (
+                    <Badge key={tag} variant="outline" className="text-xs px-3 py-1">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
             <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant={isEncrypted ? 'default' : 'secondary'}
@@ -134,27 +155,6 @@ export function PromptDialog({
                   </Badge>
                 )}
               </div>
-
-              <div className="space-y-2">
-                <DialogTitle className="text-3xl sm:text-4xl font-semibold tracking-tight">
-                  {prompt.title}
-                </DialogTitle>
-                {prompt.description && (
-                  <DialogDescription className="text-base text-foreground/70 max-w-2xl">
-                    {prompt.description}
-                  </DialogDescription>
-                )}
-              </div>
-
-              {prompt.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {prompt.tags.map(tag => (
-                    <Badge key={tag} variant="outline" className="text-xs px-3 py-1">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
           </div>
 
           <div className="flex flex-col gap-1 text-xs text-foreground/60">
@@ -175,7 +175,7 @@ export function PromptDialog({
           </div>
         </DialogHeader>
 
-        <DialogBody className="flex-1 overflow-y-auto space-y-6">
+        <DialogBody className="flex-1 overflow-y-auto min-h-0">
           <div className="border rounded-xl p-5">
             <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-foreground/50">
               <span>{wordCount} words</span>
@@ -184,7 +184,7 @@ export function PromptDialog({
               <span>•</span>
               <span>ID <code className="rounded bg-muted px-1.5 py-0.5 text-[11px]">{prompt.id}</code></span>
             </div>
-            <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
+            <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed pr-1">
               {typeof prompt.content === 'string' ? prompt.content : 'Encrypted content unavailable'}
             </pre>
           </div>
@@ -195,6 +195,7 @@ export function PromptDialog({
             variant="outline"
             onClick={handleCopy}
             size="sm"
+            className="gap-2"
           >
             {copied ? (
               <>
@@ -214,6 +215,7 @@ export function PromptDialog({
               variant="outline"
               onClick={onShowVersions}
               size="sm"
+              className="gap-2"
             >
               <History className="h-4 w-4" />
               <span className="hidden sm:inline">History</span>
@@ -224,6 +226,7 @@ export function PromptDialog({
             variant="outline"
             onClick={onEdit}
             size="sm"
+            className="gap-2"
           >
             <Edit className="h-4 w-4" />
             <span className="hidden sm:inline">Edit</span>
@@ -237,6 +240,7 @@ export function PromptDialog({
                 onOpenChange(false);
               }}
               size="sm"
+              className="gap-2"
             >
               <Archive className="h-4 w-4" />
               <span className="hidden sm:inline">Archive</span>
