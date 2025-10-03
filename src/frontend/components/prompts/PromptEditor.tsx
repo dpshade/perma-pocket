@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Lock, Globe } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/frontend/components/ui/dialog';
+import { Lock, Globe, X } from 'lucide-react';
+import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/frontend/components/ui/dialog';
 import { Button } from '@/frontend/components/ui/button';
 import { Input } from '@/frontend/components/ui/input';
 import { Textarea } from '@/frontend/components/ui/textarea';
 import { Badge } from '@/frontend/components/ui/badge';
+import { Label } from '@/frontend/components/ui/label';
 import { shouldEncrypt } from '@/core/encryption/crypto';
 import { usePrompts } from '@/frontend/hooks/usePrompts';
 import type { Prompt } from '@/shared/types/prompt';
@@ -186,154 +187,133 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl flex flex-col h-[80vh] p-0">
-        {/* Header */}
-        <div className="flex-shrink-0 px-6 pt-6">
-          <DialogHeader>
-            <DialogTitle>
+      <DialogContent
+        size="xl"
+        className="flex max-h-[88vh] flex-col"
+      >
+        <DialogHeader className="gap-2 text-left">
+          <DialogTitle className="text-xl font-semibold">
               {prompt ? 'Edit Prompt' : 'Create New Prompt'}
-            </DialogTitle>
-            <DialogDescription>
-              {prompt ? 'Update your prompt. A new version will be created and uploaded to Arweave.' : 'Create a new prompt and upload it to Arweave (free under 100 KiB).'}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+          </DialogTitle>
+          <DialogDescription className="text-sm text-foreground/70">
+            {prompt ? 'Update your prompt. A new version will be created and uploaded to Arweave.' : 'Craft a new prompt and we’ll prepare it for Arweave (free under 100 KiB).'}
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto px-6">
-          <div className="space-y-2 py-4">
-          {/* Title */}
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium w-24 flex-shrink-0">
-              Title <span className="text-xs text-muted-foreground">*</span>
-            </label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter prompt title..."
-              autoFocus
-              className="flex-1"
-            />
-          </div>
+        <DialogBody className="flex-1 overflow-y-auto space-y-6">
+          <div className="space-y-10">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground/70">Title <span className="text-xs text-foreground/40">*</span></Label>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Give your prompt a clear title..."
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground/70">Description</Label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional short description"
+                />
+              </div>
+            </div>
 
-          {/* Description */}
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium w-24 flex-shrink-0">Description</label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of what this prompt does..."
-              className="flex-1"
-            />
-          </div>
-
-          {/* Tags */}
-          <div className="flex items-start gap-3">
-            <label className="text-sm font-medium w-24 flex-shrink-0">Tags</label>
-            <div className="flex-1 space-y-2">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-foreground/70">Tags</Label>
               <div className="flex gap-2">
                 <Input
                   ref={tagInputRef}
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Add a tag and press Enter..."
-                  className="flex-1"
+                  placeholder="Add a tag and press Enter"
                 />
-                <Button type="button" onClick={() => handleAddTag()} variant="outline">
+                <Button type="button" variant="outline" onClick={() => handleAddTag()}>
                   Add
                 </Button>
               </div>
-
-              {/* Active tags and available tag suggestions */}
-              <div className="flex flex-wrap gap-2">
-                {/* Active tags (removable) */}
-                {tags.map(tag => {
-                  const isPublicTag = tag.toLowerCase() === 'public';
-                  return (
-                    <Badge
-                      key={tag}
-                      variant={isPublicTag ? "default" : "secondary"}
-                      className="cursor-pointer"
-                      onClick={() => handleRemoveTag(tag)}
-                      title={isPublicTag ? "This tag makes the prompt public (click to remove)" : "Click to remove"}
-                    >
-                      {isPublicTag && <Globe className="mr-1 h-3 w-3" />}
-                      {tag}
-                      <X className="ml-1 h-3 w-3" />
-                    </Badge>
-                  );
-                })}
-
-                {/* Available tag suggestions (clickable to add) */}
-                {availableTags.length > 0 && (
-                  <>
-                    {availableTags.map(tag => (
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map(tag => {
+                    const isPublicTag = tag.toLowerCase() === 'public';
+                    return (
                       <Badge
                         key={tag}
-                        variant="outline"
-                        className="cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
-                        onClick={() => handleAddTag(tag)}
-                        title="Click to add"
+                        variant={isPublicTag ? 'default' : 'secondary'}
+                        className="cursor-pointer px-3 py-1 text-xs"
+                        onClick={() => handleRemoveTag(tag)}
+                        title={isPublicTag ? 'This tag makes the prompt public (click to remove)' : 'Click to remove'}
                       >
+                        {isPublicTag && <Globe className="mr-1 h-3 w-3" />}
                         {tag}
+                        <X className="ml-1 h-3 w-3" />
                       </Badge>
-                    ))}
-                  </>
-                )}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
+              {availableTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 text-xs text-foreground/60">
+                  {availableTags.map(tag => (
+                    <Badge
+                      key={tag}
+                      variant="outline"
+                      className="cursor-pointer px-3 py-1 text-xs"
+                      onClick={() => handleAddTag(tag)}
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        </div>
 
-          {/* Content - expandable */}
-          <div className="flex items-start gap-3 mt-2">
-            <label className="text-sm font-medium w-24 flex-shrink-0">
-              Content <span className="text-xs text-muted-foreground">*</span>
-            </label>
-            <div className="flex-1 flex flex-col min-h-[300px]">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-foreground/70">Content <span className="text-xs text-foreground/40">*</span></Label>
               <Textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Enter your prompt content here... (supports Markdown)"
-                className="flex-1 font-mono text-sm resize-none mb-1 min-h-[300px]"
+                placeholder="Write your prompt..."
+                className="min-h-[260px] resize-vertical font-mono text-sm"
               />
-              <div className="text-xs text-muted-foreground flex-shrink-0">
-                {content.length} characters · {Math.ceil(new Blob([content]).size / 1024)} KB
+              <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/60">
+                <span>{content.length} characters</span>
+                <span>•</span>
+                <span>{Math.ceil(new Blob([content]).size / 1024)} KB</span>
                 {new Blob([content]).size > 102400 && (
-                  <span className="text-yellow-600 ml-2">
-                    ⚠ Exceeds 100 KiB free tier
-                  </span>
+                  <span className="text-amber-600">⚠ Exceeds 100 KiB free tier</span>
                 )}
               </div>
-
-              {/* Encryption Info Banner */}
-              <div className={`mt-2 rounded border px-2 py-1.5 text-xs flex-shrink-0 ${
-                willBeEncrypted
-                  ? 'border-primary/30 bg-primary/5 text-muted-foreground'
-                  : 'border-yellow-600/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300'
-              }`}>
+              <div
+                className={`rounded-md border px-3 py-2 text-xs leading-relaxed ${
+                  willBeEncrypted
+                    ? 'border-primary/30 bg-primary/10 text-primary-foreground'
+                    : 'border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-200'
+                }`}
+              >
                 {willBeEncrypted ? (
                   <>
-                    Only your wallet can decrypt this content. To make a prompt public, add the <code className="px-1 py-0.5 bg-muted rounded text-[10px]">public</code> tag.
+                    Only your wallet can decrypt this content. Add the <code className="px-1 py-0.5 bg-black/5 dark:bg-white/10 rounded">public</code> tag to share it.
                   </>
                 ) : (
                   <>
-                    <strong>⚠ Warning:</strong> This prompt will be stored as plain text on Arweave and will be <strong>permanently public</strong>. Anyone can read it forever. Making it private later will only encrypt future uploads—the public version will remain on Arweave permanently.
+                    <strong>Warning:</strong> This prompt will be permanently public on Arweave. Removing the public tag later will not erase this copy.
                   </>
                 )}
               </div>
             </div>
           </div>
-        </div>
+        </DialogBody>
 
-        {/* Sticky Footer */}
-        <div className="flex items-center justify-between gap-2 flex-shrink-0 border-t pt-4 pb-4 px-6 bg-background">
-          <div className="flex items-center gap-2">
-            {/* Encryption Status Badge */}
+        <DialogFooter className="justify-between">
+          <div className="flex items-center gap-2 text-xs text-foreground/70">
             <Badge
-              variant={willBeEncrypted ? "default" : "secondary"}
-              className="flex items-center gap-1.5 text-xs"
+              variant={willBeEncrypted ? 'default' : 'secondary'}
+              className="flex items-center gap-1.5 px-3 py-1"
             >
               {willBeEncrypted ? (
                 <>
@@ -347,15 +327,13 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
                 </>
               )}
             </Badge>
-
-            {/* Quick Public/Private Toggle */}
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={handleTogglePublic}
-              className="h-7 text-xs"
-              title={willBeEncrypted ? "Make this prompt public" : "Make this prompt private (encrypted)"}
+              className="h-8 text-xs"
+              title={willBeEncrypted ? 'Make this prompt public' : 'Make this prompt private (encrypted)'}
             >
               {willBeEncrypted ? (
                 <>
@@ -382,11 +360,12 @@ export function PromptEditor({ open, onOpenChange, prompt, onSave }: PromptEdito
             <Button
               onClick={handleSave}
               disabled={saving || !title.trim() || !content.trim()}
+              className="min-w-[160px]"
             >
-              {saving ? 'Saving...' : prompt ? 'Update & Upload' : 'Create & Upload'}
+              {saving ? 'Saving…' : prompt ? 'Update & Upload' : 'Create & Upload'}
             </Button>
           </div>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

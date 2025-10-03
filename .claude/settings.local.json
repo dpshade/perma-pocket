@@ -28,7 +28,9 @@
       "Bash(find:*)",
       "Bash(magick:*)",
       "Bash(bun:*)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(npm:*)",
+      "Bash(git --version)"
     ],
     "deny": [],
     "ask": []

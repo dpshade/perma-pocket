@@ -179,8 +179,23 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
   const duplicateCount = getDuplicateCount(prompts);
 
   return (
-    <div className="space-y-3">
-      <div className="border border-border/50 bg-muted/30 rounded-lg p-3 sm:p-2 space-y-2">
+    <div className="space-y-4">
+      {showBooleanBuilder && (
+        <div className="animate-in fade-in slide-in-from-top-2">
+          <BooleanBuilder
+            allTags={allTags}
+            prompts={prompts}
+            searchQuery={searchQuery}
+            expressionText={expressionText}
+            onExpressionChange={setExpressionText}
+            onApply={handleApplyExpression}
+            onClose={() => setShowBooleanBuilder(false)}
+            isOpen={showBooleanBuilder}
+            collections={collections}
+          />
+        </div>
+      )}
+      <div className="floating-glass-bar relative px-5 py-4 sm:px-4 sm:py-3 space-y-3 text-foreground/90">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 sm:left-3 top-1/2 h-5 w-5 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
 
@@ -200,17 +215,17 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
           <Input
             ref={searchInputRef}
             type="text"
-            placeholder={booleanExpression ? 'Additional text filter…' : 'Search prompts… (use # for tags)'}
+            placeholder={booleanExpression ? 'Additional text filter…' : 'Search prompts…'}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             onKeyDown={handleInlineAutocompleteKeyDown}
-            className="h-11 sm:h-8 w-full border-0 bg-transparent pl-11 sm:pl-10 pr-20 sm:pr-16 text-base sm:text-sm focus-visible:ring-0 py-0"
+            className="h-11 sm:h-9 w-full border-0 bg-transparent pl-11 sm:pl-10 pr-24 sm:pr-20 text-base sm:text-sm focus-visible:ring-0 py-0"
           />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-1">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 sm:gap-1.5 bg-white/50 dark:bg-black/40 backdrop-blur-md rounded-full px-2 py-1 shadow-md border border-white/30 dark:border-white/10 transition-all hover:bg-white/60 hover:dark:bg-black/50 hover:border-white/40 hover:dark:border-white/20">
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="rounded-full p-1.5 sm:p-1 text-muted-foreground transition-all hover:text-foreground active:scale-95"
+                className="rounded-full p-1.5 sm:p-1 text-muted-foreground transition-all hover:text-foreground active:scale-95 hover:bg-transparent"
                 title="Clear search"
               >
                 <X className="h-5 w-5 sm:h-4 sm:w-4" />
@@ -220,7 +235,7 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
               variant={booleanExpression || showBooleanBuilder ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setShowBooleanBuilder((open) => !open)}
-              className="h-8 w-8 sm:h-7 sm:w-7 p-0"
+              className={`h-8 w-8 sm:h-7 sm:w-7 p-0 ${booleanExpression || showBooleanBuilder ? 'bg-primary/90 hover:bg-primary' : 'hover:bg-transparent'}`}
               title="Filter builder"
             >
               <Filter className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
@@ -231,10 +246,10 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
         {!booleanExpression && (
           <>
             <div
-              className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground cursor-pointer pt-2 border-t border-border/30"
+              className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground cursor-pointer pt-2 border-t border-white/30 dark:border-white/10"
               onClick={() => setShowTagSuggestions(!showTagSuggestions)}
             >
-              <div className="font-medium text-foreground transition-colors hover:text-primary text-[13px] sm:text-xs px-2 py-1.5 sm:py-1">
+              <div className="font-medium text-foreground/90 transition-colors hover:text-primary text-[13px] sm:text-xs px-2 py-1.5 sm:py-1 bg-white/20 dark:bg-white/5 rounded-lg">
                 {showTagSuggestions ? 'Hide tag filters' : 'Show tag filters'} ({allTags.length} {tagLabel})
               </div>
               <div className="flex items-center gap-2.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
@@ -245,7 +260,7 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
                       setExpressionText(tagsExpression);
                       setShowBooleanBuilder(true);
                     }}
-                    className="text-[13px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                    className="text-[13px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 bg-white/20 dark:bg-white/5 px-2 py-1 rounded-md"
                     title="Click to edit filter"
                   >
                     Filtering by {selectedTags.length} {selectedTags.length === 1 ? 'tag' : 'tags'}
@@ -292,16 +307,19 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
             {showTagSuggestions && (
               <div className="flex flex-wrap gap-2.5 sm:gap-2">
                 {allTags.length > 0 ? (
-                  allTags.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant={selectedTags.includes(tag) ? 'default' : 'outline'}
-                      className="cursor-pointer rounded-full px-3.5 sm:px-3 py-1.5 sm:py-1 text-[13px] sm:text-xs transition-colors hover:bg-primary hover:text-primary-foreground active:scale-95"
-                      onClick={() => toggleTag(tag)}
-                    >
-                      {tag}
-                    </Badge>
-                  ))
+                  allTags.map((tag) => {
+                    const isSelected = selectedTags.includes(tag);
+                    return (
+                      <Badge
+                        key={tag}
+                        variant={isSelected ? 'default' : 'outline'}
+                        className={`cursor-pointer rounded-full px-3.5 sm:px-3 py-1.5 sm:py-1 text-[13px] sm:text-xs transition-colors active:scale-95 ${isSelected ? 'hover:bg-primary hover:text-primary-foreground' : ''}`}
+                        onClick={() => toggleTag(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    );
+                  })
                 ) : (
                   <div className="text-[13px] sm:text-xs text-muted-foreground">No tags yet. Add tags to your prompts!</div>
                 )}
@@ -315,7 +333,7 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
 
         {booleanExpression && (
           <div
-            className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-sm cursor-pointer hover:bg-primary/10 transition-colors"
+            className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm cursor-pointer hover:bg-primary/20 transition-colors"
             onClick={() => {
               setExpressionText(expressionToString(booleanExpression));
               setShowBooleanBuilder(true);
@@ -343,21 +361,6 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
           </div>
         )}
 
-        {showBooleanBuilder && (
-          <div className="animate-in fade-in slide-in-from-top-2">
-            <BooleanBuilder
-              allTags={allTags}
-              prompts={prompts}
-              searchQuery={searchQuery}
-              expressionText={expressionText}
-              onExpressionChange={setExpressionText}
-              onApply={handleApplyExpression}
-              onClose={() => setShowBooleanBuilder(false)}
-              isOpen={showBooleanBuilder}
-              collections={collections}
-            />
-          </div>
-        )}
       </div>
 
 

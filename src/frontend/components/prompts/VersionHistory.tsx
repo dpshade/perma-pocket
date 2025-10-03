@@ -170,13 +170,13 @@ export function VersionHistory({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4">
           {uniqueVersions.map((version, index) => {
             const isLatest = index === uniqueVersions.length - 1;
             return (
               <div
                 key={version.txId}
-                className="border rounded-lg p-4 space-y-3"
+                className="border rounded-xl p-4 space-y-3"
               >
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">

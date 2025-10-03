@@ -1,11 +1,10 @@
 import { Copy, Edit, Archive, History, Check, Lock, Globe } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog';
+import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/frontend/components/ui/dialog';
 import { Button } from '@/frontend/components/ui/button';
 import { Badge } from '@/frontend/components/ui/badge';
 import type { Prompt } from '@/shared/types/prompt';
 import { useState, useEffect } from 'react';
 import { wasPromptEncrypted } from '@/core/encryption/crypto';
-import { getPublicPromptShareLink } from '@/frontend/utils/deepLinks';
 
 interface PromptDialogProps {
   open: boolean;
@@ -25,7 +24,6 @@ export function PromptDialog({
   onShowVersions,
 }: PromptDialogProps) {
   const [copied, setCopied] = useState(false);
-  const [publicLinkCopied, setPublicLinkCopied] = useState(false);
 
   // Check if prompt has version history based on the latest version number
   const hasVersionHistory = (prompt: Prompt | null) => {
@@ -85,14 +83,6 @@ export function PromptDialog({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSharePublicLink = () => {
-    if (!prompt.currentTxId) return;
-    const shareUrl = getPublicPromptShareLink(prompt.currentTxId);
-    navigator.clipboard.writeText(shareUrl);
-    setPublicLinkCopied(true);
-    setTimeout(() => setPublicLinkCopied(false), 2000);
-  };
-
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString('en-US', {
       year: 'numeric',
@@ -103,143 +93,129 @@ export function PromptDialog({
     });
   };
 
+  const characterCount = typeof prompt.content === 'string' ? prompt.content.length : 0;
+  const wordCount = typeof prompt.content === 'string'
+    ? prompt.content.trim().split(/\s+/).filter(Boolean).length
+    : 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
-        {/* Sticky Header */}
-        <div className="flex-none px-6 pt-6 pb-4 border-b bg-background rounded-t-lg">
-          <DialogHeader className="text-left">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col gap-2">
-                <DialogTitle className="text-2xl text-left">{prompt.title}</DialogTitle>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge
-                    variant={isEncrypted ? "default" : "secondary"}
-                    className="flex items-center gap-1"
-                    title={isEncrypted
-                      ? "This prompt is encrypted. Only your wallet can decrypt it."
-                      : "This prompt is public. Anyone can read it on Arweave."}
-                  >
-                    {isPublic ? (
-                      <>
-                        <Globe className="h-3 w-3" />
-                        <span className="text-xs">Public</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="h-3 w-3" />
-                        <span className="text-xs">Encrypted</span>
-                      </>
-                    )}
-                  </Badge>
-                  {hasVersionHistory(prompt) && (
-                    <Badge variant="secondary">
-                      v{prompt.versions[prompt.versions.length - 1]?.version}
-                    </Badge>
+      <DialogContent size="xl" className="flex max-h-[88vh] flex-col">
+        <DialogHeader className="space-y-4 text-left border-b">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant={isEncrypted ? 'default' : 'secondary'}
+                  className="flex items-center gap-1.5 px-3 py-1 text-xs"
+                  title={isEncrypted
+                    ? 'This prompt is encrypted. Only your wallet can decrypt it.'
+                    : 'This prompt is public. Anyone can read it on Arweave.'}
+                >
+                  {isPublic ? (
+                    <>
+                      <Globe className="h-3.5 w-3.5" />
+                      Public
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-3.5 w-3.5" />
+                      Encrypted
+                    </>
                   )}
-                </div>
-                {prompt.description && (
-                  <p className="text-sm text-muted-foreground text-left">
-                    {prompt.description}
-                  </p>
+                </Badge>
+                {hasVersionHistory(prompt) && (
+                  <Badge variant="outline" className="px-3 py-1 text-xs">
+                    v{prompt.versions[prompt.versions.length - 1]?.version}
+                  </Badge>
+                )}
+                {prompt.isArchived && (
+                  <Badge variant="outline" className="px-3 py-1 text-xs bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                    Archived
+                  </Badge>
                 )}
               </div>
-            </div>
 
-            {/* Tags */}
-            {prompt.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {prompt.tags.map(tag => (
-                  <Badge key={tag} variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
+              <div className="space-y-2">
+                <DialogTitle className="text-3xl sm:text-4xl font-semibold tracking-tight">
+                  {prompt.title}
+                </DialogTitle>
+                {prompt.description && (
+                  <DialogDescription className="text-base text-foreground/70 max-w-2xl">
+                    {prompt.description}
+                  </DialogDescription>
+                )}
               </div>
-            )}
 
-            {/* Metadata */}
-            <div className="text-xs text-muted-foreground space-y-1 mt-3 text-left">
-              <div>Created: {formatDate(prompt.createdAt)}</div>
-              <div>Last updated: {formatDate(prompt.updatedAt)}</div>
-              {prompt.currentTxId && (
-                <div>
-                  Arweave TxID:{' '}
-                  <a
-                    href={`https://viewblock.io/arweave/tx/${prompt.currentTxId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    {prompt.currentTxId.slice(0, 8)}...{prompt.currentTxId.slice(-8)}
-                  </a>
+              {prompt.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {prompt.tags.map(tag => (
+                    <Badge key={tag} variant="outline" className="text-xs px-3 py-1">
+                      {tag}
+                    </Badge>
+                  ))}
                 </div>
               )}
-            </div>
-          </DialogHeader>
-        </div>
+          </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="rounded-md border bg-muted/50 p-4">
-            <pre className="whitespace-pre-wrap font-mono text-sm">
-              {prompt.content}
+          <div className="flex flex-col gap-1 text-xs text-foreground/60">
+            <div>Created: <span className="font-medium text-foreground/80">{formatDate(prompt.createdAt)}</span></div>
+            <div>Last updated: <span className="font-medium text-foreground/80">{formatDate(prompt.updatedAt)}</span></div>
+            {prompt.currentTxId && (
+              <div className="truncate" title={prompt.currentTxId}>
+                Arweave TxID: <a
+                  href={`https://viewblock.io/arweave/tx/${prompt.currentTxId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-foreground/80 hover:text-foreground underline decoration-dotted underline-offset-2"
+                >
+                  {prompt.currentTxId.slice(0, 12)}...{prompt.currentTxId.slice(-8)}
+                </a>
+              </div>
+            )}
+          </div>
+        </DialogHeader>
+
+        <DialogBody className="flex-1 overflow-y-auto space-y-6">
+          <div className="border rounded-xl p-5">
+            <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-foreground/50">
+              <span>{wordCount} words</span>
+              <span>•</span>
+              <span>{characterCount} characters</span>
+              <span>•</span>
+              <span>ID <code className="rounded bg-muted px-1.5 py-0.5 text-[11px]">{prompt.id}</code></span>
+            </div>
+            <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
+              {typeof prompt.content === 'string' ? prompt.content : 'Encrypted content unavailable'}
             </pre>
           </div>
-        </div>
+        </DialogBody>
 
-        {/* Sticky Actions */}
-        <div className="flex gap-1 sm:gap-2 justify-end border-t pt-4 pb-4 px-4 sm:px-6 bg-background flex-shrink-0 rounded-b-lg">
+        <DialogFooter className="flex-row justify-end border-t">
           <Button
             variant="outline"
             onClick={handleCopy}
             size="sm"
-            className="flex-shrink-0"
           >
             {copied ? (
               <>
-                <Check className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Copied!</span>
+                <Check className="h-4 w-4" />
+                <span className="hidden sm:inline">Copied</span>
               </>
             ) : (
               <>
-                <Copy className="h-4 w-4 sm:mr-2" />
+                <Copy className="h-4 w-4" />
                 <span className="hidden sm:inline">Copy</span>
               </>
             )}
           </Button>
 
-          {/* Only show share button for public prompts with TxID */}
-          {isPublic && prompt.currentTxId && (
-            <Button
-              variant="outline"
-              onClick={handleSharePublicLink}
-              title="Copy public link (no wallet required)"
-              size="sm"
-              className="flex-shrink-0"
-            >
-              {publicLinkCopied ? (
-                <>
-                  <Check className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Link Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Globe className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Share</span>
-                </>
-              )}
-            </Button>
-          )}
-
           {hasVersionHistory(prompt) && (
             <Button
               variant="outline"
               onClick={onShowVersions}
-              title="View version history"
               size="sm"
-              className="flex-shrink-0"
             >
-              <History className="h-4 w-4 sm:mr-2" />
+              <History className="h-4 w-4" />
               <span className="hidden sm:inline">History</span>
             </Button>
           )}
@@ -248,9 +224,8 @@ export function PromptDialog({
             variant="outline"
             onClick={onEdit}
             size="sm"
-            className="flex-shrink-0"
           >
-            <Edit className="h-4 w-4 sm:mr-2" />
+            <Edit className="h-4 w-4" />
             <span className="hidden sm:inline">Edit</span>
           </Button>
 
@@ -262,13 +237,12 @@ export function PromptDialog({
                 onOpenChange(false);
               }}
               size="sm"
-              className="flex-shrink-0"
             >
-              <Archive className="h-4 w-4 sm:mr-2" />
+              <Archive className="h-4 w-4" />
               <span className="hidden sm:inline">Archive</span>
             </Button>
           )}
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

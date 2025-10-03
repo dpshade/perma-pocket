@@ -1,11 +1,13 @@
+import type { HTMLAttributes } from 'react';
 import { ExternalLink, Edit, Archive, ArchiveRestore, Check, Lock, Globe, Info } from 'lucide-react';
 import { Button } from '@/frontend/components/ui/button';
 import { Badge } from '@/frontend/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/frontend/components/ui/tooltip';
 import type { Prompt } from '@/shared/types/prompt';
 import { wasPromptEncrypted } from '@/core/encryption/crypto';
+import { cn } from '@/shared/utils/cn';
 
-interface PromptListItemProps {
+interface PromptListItemProps extends HTMLAttributes<HTMLDivElement> {
   prompt: Prompt;
   isSelected?: boolean;
   isCopied?: boolean;
@@ -14,9 +16,10 @@ interface PromptListItemProps {
   onArchive: () => void;
   onRestore: () => void;
   onCopy: () => void;
+  variant?: 'card' | 'pane';
 }
 
-export function PromptListItem({ prompt, isSelected = false, isCopied = false, onView, onEdit, onArchive, onRestore, onCopy }: PromptListItemProps) {
+export function PromptListItem({ prompt, isSelected = false, isCopied = false, onView, onEdit, onArchive, onRestore, onCopy, variant = 'card', className, ...rest }: PromptListItemProps) {
   const isEncrypted = wasPromptEncrypted(prompt.tags);
   const isPublic = !isEncrypted;
 
@@ -45,17 +48,33 @@ export function PromptListItem({ prompt, isSelected = false, isCopied = false, o
     return '';
   };
 
+  const containerClass = variant === 'pane'
+    ? cn(
+        'group relative px-5 sm:px-6 py-5 sm:py-4 cursor-pointer transition-all overflow-hidden',
+        !isCopied && isSelected
+          ? 'backdrop-blur-md bg-primary/15 ring-primary/60 shadow-lg -mt-px'
+          : 'hover:bg-muted/50',
+        className,
+      )
+    : cn(
+        'group relative bg-card rounded-3xl sm:rounded-2xl py-5 px-5 sm:py-4 sm:px-5 transition-all cursor-pointer overflow-hidden shadow-sm hover:shadow-md',
+        !isCopied && isSelected ? 'ring-2 ring-primary/80 shadow-xl backdrop-blur-sm bg-gradient-to-br from-primary/12 to-primary/8' : '',
+        className,
+      );
+
   return (
     <div
-      className={`group relative border-b border-border py-5 px-5 sm:py-4 sm:px-4 md:hover:bg-muted/50 transition-colors cursor-pointer overflow-hidden ${!isCopied && isSelected ? 'bg-primary/3 border-l-4 border-l-primary' : ''}`}
+      className={containerClass}
       onClick={handleCopy}
       title="Click to copy"
+      {...rest}
     >
       {/* Copy overlay */}
       {isCopied && (
         <div
-          className="absolute inset-0 bg-primary/25 backdrop-blur-[2px] z-10 flex items-center justify-center"
+          className="absolute inset-0 backdrop-blur-[20px] backdrop-saturate-[1.4] bg-white/40 dark:bg-black/30 z-10 flex items-center justify-center shadow-2xl"
           style={{
+            WebkitBackdropFilter: 'blur(20px) saturate(1.4)',
             animation: 'fadeIn 0.15s ease-in, fadeOut 0.25s ease-out 1s forwards'
           }}
         >
@@ -123,7 +142,12 @@ export function PromptListItem({ prompt, isSelected = false, isCopied = false, o
         </div>
 
         {/* Actions - Horizontal Bottom (Mobile), Horizontal Bottom Right (Desktop) */}
-        <div className="flex sm:absolute flex-row gap-2 sm:gap-1 sm:top-auto sm:translate-y-0 sm:bottom-4 sm:right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity sm:bg-background/95 sm:backdrop-blur-sm sm:rounded-lg pt-2 sm:pt-0 p-0 sm:p-1 sm:shadow-lg sm:border sm:border-border/50 md:border-0 w-full sm:w-auto">
+        <div className={cn(
+          'flex sm:absolute flex-row gap-2 sm:gap-1 sm:top-auto sm:translate-y-0 sm:bottom-4 sm:right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity pt-2 sm:pt-0 p-0 sm:p-1 w-full sm:w-auto',
+          variant === 'pane'
+            ? 'bg-muted/50 rounded-2xl sm:bg-transparent sm:rounded-none'
+            : 'sm:bg-background sm:border sm:rounded-2xl sm:shadow-sm'
+        )}>
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>

@@ -65,22 +65,42 @@ const DialogOverlay = React.forwardRef<
 })
 DialogOverlay.displayName = "DialogOverlay"
 
+const dialogSizeClasses: Record<string, string> = {
+  sm: "sm:max-w-[420px]",
+  md: "sm:max-w-[540px]",
+  lg: "sm:max-w-[720px]",
+  xl: "sm:max-w-4xl",
+  full: "sm:max-w-[min(90vw,1100px)]",
+}
+
+type DialogContentProps = React.HTMLAttributes<HTMLDivElement> & {
+  position?: 'center' | 'bottom'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+}
+
 const DialogContent = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => {
+  DialogContentProps
+>(({ className, children, position = 'center', size = 'lg', ...props }, ref) => {
   const { onOpenChange } = React.useContext(DialogContext)
   return (
     <DialogPortal>
       <DialogOverlay />
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className={cn(
+          "fixed inset-0 z-50 flex p-4 sm:p-6",
+          position === 'bottom'
+            ? 'items-end justify-center'
+            : 'items-center justify-center'
+        )}
         onClick={() => onOpenChange?.(false)}
       >
         <div
           ref={ref}
           className={cn(
-            "relative grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg rounded-lg",
+            "relative grid w-full gap-0 bg-background border rounded-[24px] shadow-lg px-0 py-0 overflow-hidden",
+            dialogSizeClasses[size],
+            position === 'bottom' && 'pointer-events-auto max-w-4xl translate-y-0 rounded-t-lg rounded-b-md pb-[calc(env(safe-area-inset-bottom)+1.5rem)]',
             className
           )}
           onClick={(e) => e.stopPropagation()}
@@ -107,7 +127,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
+      "flex flex-col gap-1.5 text-center sm:text-left p-6",
       className
     )}
     {...props}
@@ -148,13 +168,27 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "flex flex-wrap gap-3 justify-end p-6",
       className
     )}
     {...props}
   />
 )
 DialogFooter.displayName = "DialogFooter"
+
+const DialogBody = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "p-6",
+      className
+    )}
+    {...props}
+  />
+)
+DialogBody.displayName = "DialogBody"
 
 export {
   Dialog,
@@ -164,4 +198,5 @@ export {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogBody,
 }

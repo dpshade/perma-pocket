@@ -157,6 +157,7 @@ function App() {
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const [deepLinkInitialized, setDeepLinkInitialized] = useState(false);
+  const previousIndexRef = useRef<number>(0);
   const passwordCheckDone = useRef(false);
 
   // Track grid columns for keyboard navigation
@@ -463,11 +464,43 @@ function App() {
 
   // Scroll selected item into view
   useEffect(() => {
+    if (selectedIndex === -1) return;
+
     const selectedElement = document.querySelector(`[data-prompt-index="${selectedIndex}"]`);
     if (selectedElement) {
-      selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const previousIndex = previousIndexRef.current;
+      const lastIndex = filteredPrompts.length - 1;
+
+      // Detect wrap-around: jumped from last to first (navigating down)
+      const wrappedDown = previousIndex === lastIndex && selectedIndex === 0;
+
+      // Detect wrap-around: jumped from first to last (navigating up)
+      const wrappedUp = previousIndex === 0 && selectedIndex === lastIndex;
+
+      if (wrappedDown) {
+        // Just wrapped from last to first - stay at top (already there from wrap)
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (wrappedUp || selectedIndex === lastIndex) {
+        // Wrapped from first to last, or navigated to last element - scroll to bottom
+        const maxScroll = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+          document.body.offsetHeight,
+          document.documentElement.offsetHeight
+        );
+        window.scrollTo({ top: maxScroll, behavior: 'smooth' });
+      } else if (selectedIndex === 0) {
+        // At first element (not from wrap) - scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // Otherwise, scroll element into view
+        selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // Update previous index for next comparison
+      previousIndexRef.current = selectedIndex;
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, filteredPrompts.length]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -532,12 +565,18 @@ function App() {
           if (blockingDialogOpen) return;
           if (!isSearchInput && isTyping) return;
           event.preventDefault();
-          // If in search input, move to first result and blur search
+          // If in search input, check current selection
           if (isSearchInput) {
-            setSelectedIndex(0);
+            // If nothing selected or middle item selected, go to last item
+            if (selectedIndex === -1 || (selectedIndex !== 0 && selectedIndex !== numResults - 1)) {
+              setSelectedIndex(numResults - 1);
+            } else {
+              // Otherwise go to first item
+              setSelectedIndex(0);
+            }
             searchBarRef.current?.blurSearchInput();
           } else if (viewMode === 'list') {
-            // List view: go to next item
+            // List view: go to next item (wrap around at the end)
             setSelectedIndex((prev) => (prev + 1) % numResults);
           } else {
             // Grid view: go down one row
@@ -553,7 +592,17 @@ function App() {
           if (!isSearchInput && isTyping) return;
           event.preventDefault();
 
-          if (viewMode === 'list') {
+          // If in search input, check current selection
+          if (isSearchInput) {
+            // If nothing selected or middle item selected, go to last item
+            if (selectedIndex === -1 || (selectedIndex !== 0 && selectedIndex !== numResults - 1)) {
+              setSelectedIndex(numResults - 1);
+            } else {
+              // Otherwise go to last item
+              setSelectedIndex(numResults - 1);
+            }
+            searchBarRef.current?.blurSearchInput();
+          } else if (viewMode === 'list') {
             // List view: if at top item (index 0), focus search input and unfocus results
             if (selectedIndex === 0) {
               searchBarRef.current?.focusSearchInput();
@@ -777,8 +826,9 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 sm:px-4 md:px-0 py-4 sm:py-4">
+      <header className="sticky top-0 z-50 pointer-events-none">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-10 pt-[calc(env(safe-area-inset-top)+0.85rem)]">
+          <div className="glass-panel-soft border border-white/15 dark:border-white/15 rounded-[26px] px-5 sm:px-6 py-4 sm:py-4 flex items-center justify-between gap-3 shadow-lg pointer-events-auto">
           <h1 className="flex items-center gap-2.5 sm:gap-2 text-lg font-bold sm:text-xl md:text-2xl">
             <img src="/logo.svg" alt="Pocket Prompt Logo" className="h-6 w-6 sm:h-6 sm:w-6" />
             <span className="sm:hidden">Pocket</span>
@@ -793,7 +843,7 @@ function App() {
                     size="icon"
                     variant="ghost"
                     onClick={() => setUploadDialogOpen(true)}
-                    className="hidden sm:flex h-9 w-9"
+                    className="hidden sm:flex h-10 w-10 rounded-full backdrop-blur-sm"
                   >
                     <Upload className="h-4 w-4" />
                   </Button>
@@ -812,13 +862,13 @@ function App() {
                       setNotificationsDialogOpen(true);
                       notifications.markAllAsRead();
                     }}
-                    className="relative hidden sm:flex h-9 w-9"
+                    className="relative hidden sm:flex h-10 w-10 rounded-full backdrop-blur-sm"
                   >
                     <Bell className="h-4 w-4" />
                     {notifications.unreadCount > 0 && (
                       <Badge
                         variant="destructive"
-                        className="absolute -top-0.5 -right-0.5 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
+                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
                       >
                         {notifications.unreadCount > 9 ? '9+' : notifications.unreadCount}
                       </Badge>
@@ -849,29 +899,20 @@ function App() {
             />
           </div>
         </div>
+        </div>
       </header>
 
       {/* Main Content */}
-      <main className="space-y-2 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
+      <main className="space-y-2 px-4 pt-6 pb-[calc(11rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-10 sm:pb-[calc(12rem+env(safe-area-inset-bottom))] lg:px-10">
         <section className="mx-auto flex max-w-6xl flex-col gap-4">
-          <SearchBar
-            ref={searchBarRef}
-            showArchived={showArchived}
-            setShowArchived={setShowArchived}
-            viewMode={viewMode}
-            onViewModeToggle={toggleViewMode}
-            showDuplicates={showDuplicates}
-            setShowDuplicates={setShowDuplicates}
-            collections={collections}
-          />
           {showArchived && (
-            <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/30 px-4 py-2.5 text-sm">
+            <div className="glass-row flex items-center gap-2 rounded-2xl px-5 py-3 text-sm">
               <ArchiveIcon className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Viewing archived prompts</span>
             </div>
           )}
           {showDuplicates && (
-            <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-amber-500/10 px-4 py-2.5 text-sm">
+            <div className="glass-row flex items-center gap-2 rounded-2xl px-5 py-3 text-sm border border-amber-500/40 bg-amber-500/10 shadow-lg">
               <Copy className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <span className="font-medium text-amber-700 dark:text-amber-300">Showing potential duplicates only</span>
             </div>
@@ -880,7 +921,7 @@ function App() {
 
         <section className="mx-auto max-w-6xl">
         {loading ? (
-          <div className="text-center py-12">
+          <div className="glass-panel-soft rounded-3xl border border-white/20 dark:border-white/5 text-center py-12 px-6">
             <div className="relative inline-block">
               <div className="animate-spin inline-block w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full" role="status">
                 <span className="sr-only">Loading...</span>
@@ -890,8 +931,8 @@ function App() {
             <p className="mt-4 text-muted-foreground animate-pulse">Fetching your prompts...</p>
           </div>
         ) : filteredPrompts.length === 0 ? (
-          <div className="text-center py-12 space-y-4">
-            <p className="text-muted-foreground text-lg">
+          <div className="glass-panel-soft rounded-3xl border border-dashed border-primary/30 text-center py-12 px-6 space-y-4">
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               {prompts.length === 0
                 ? "No prompts yet. Click the + button to create your first prompt!"
                 : 'No prompts match your search. Try different filters?'}
@@ -899,33 +940,45 @@ function App() {
           </div>
         ) : (
           <>
-            <div className="mb-4 ml-1 text-sm text-muted-foreground">
-              Showing {filteredPrompts.length} {filteredPrompts.length === 1 ? 'prompt' : 'prompts'}
-              {(() => {
-                const totalActive = prompts.filter(p => !p.isArchived).length;
-                return filteredPrompts.length !== totalActive && !showArchived ? ` of ${totalActive} total` : '';
-              })()}
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-medium text-foreground/70 shadow-sm backdrop-blur dark:bg-white/5">
+                <span className="uppercase tracking-[0.18em] text-[11px] text-foreground/50">Results</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {filteredPrompts.length} {filteredPrompts.length === 1 ? 'prompt' : 'prompts'}
+                  {(() => {
+                    const totalActive = prompts.filter(p => !p.isArchived).length;
+                    return filteredPrompts.length !== totalActive && !showArchived ? ` of ${totalActive}` : '';
+                  })()}
+                </span>
+              </div>
+              <Button
+                onClick={handleCreateNew}
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold shadow-md hover:-translate-y-0.5 transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                New Prompt
+              </Button>
             </div>
             {viewMode === 'list' || window.innerWidth < 640 ? (
-          <div className="border border-border rounded-lg overflow-hidden bg-card">
+          <div className="glass-pane overflow-hidden">
             {filteredPrompts.map((prompt, index) => (
-              <div key={`${prompt.id}-${index}`} data-prompt-index={index}>
-                <PromptListItem
-                  prompt={prompt}
-                  isSelected={index === selectedIndex}
-                  isCopied={copiedPromptId === prompt.id}
-                  onView={() => handleView(prompt)}
-                  onEdit={() => handleEdit(prompt)}
-                  onArchive={() => archivePrompt(prompt.id, password || undefined)}
-                  onRestore={() => restorePrompt(prompt.id, password || undefined)}
-                  onCopy={() => handleCopy(prompt)}
-                />
-                {index < filteredPrompts.length - 1 && <div className="border-b border-border" />}
-              </div>
+              <PromptListItem
+                key={`${prompt.id}-${index}`}
+                prompt={prompt}
+                isSelected={index === selectedIndex}
+                isCopied={copiedPromptId === prompt.id}
+                onView={() => handleView(prompt)}
+                onEdit={() => handleEdit(prompt)}
+                onArchive={() => archivePrompt(prompt.id, password || undefined)}
+                onRestore={() => restorePrompt(prompt.id, password || undefined)}
+                onCopy={() => handleCopy(prompt)}
+                variant="pane"
+                data-prompt-index={index}
+              />
             ))}
           </div>
         ) : (
-          <div className="hidden sm:grid grid-cols-2 gap-5 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="hidden sm:grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredPrompts.map((prompt, index) => (
               <div key={`${prompt.id}-${index}`} data-prompt-index={index}>
                 <PromptCard
@@ -946,6 +999,24 @@ function App() {
         )}
         </section>
       </main>
+
+      {/* Floating Search Bar */}
+      <div className="pointer-events-none">
+        <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] sm:px-6">
+          <div className="pointer-events-auto w-full max-w-2xl">
+            <SearchBar
+              ref={searchBarRef}
+              showArchived={showArchived}
+              setShowArchived={setShowArchived}
+              viewMode={viewMode}
+              onViewModeToggle={toggleViewMode}
+              showDuplicates={showDuplicates}
+              setShowDuplicates={setShowDuplicates}
+              collections={collections}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Dialogs */}
       <PromptDialog
@@ -1003,18 +1074,6 @@ function App() {
         onPasswordUnlock={handlePasswordUnlock}
         onCancel={() => setPasswordUnlockOpen(false)}
       />
-
-      {/* Floating Action Button */}
-      <Button
-        onClick={handleCreateNew}
-        size="lg"
-        className="fixed bottom-6 right-6 sm:bottom-6 sm:right-6 rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-110 active:scale-95 z-50 h-16 w-16 sm:h-14 sm:w-14 md:h-12 md:w-auto md:px-6 flex items-center justify-center"
-        title="Create prompt"
-      >
-        <Plus className="h-7 w-7 sm:h-6 sm:w-6 md:mr-2 flex-shrink-0" />
-        <span className="hidden md:inline font-semibold">Prompt</span>
-      </Button>
-
       {/* PWA Install Prompt */}
       <InstallPrompt />
     </div>

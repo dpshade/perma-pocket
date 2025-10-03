@@ -280,16 +280,16 @@ export function BooleanBuilder({
   const showTagToggle = displayedTags.length > 12;
 
   return (
-    <div className="rounded-lg border border-border/70 bg-background/95 shadow-sm">
+    <div className="rounded-[24px] backdrop-filter backdrop-blur-3xl backdrop-saturate-150 bg-white/25 dark:bg-black/35 border border-white/30 dark:border-white/15 shadow-xl">
       <div
-        className="flex items-center gap-3 border-b border-border/60 px-3 py-2.5 bg-primary rounded-t-lg text-primary-foreground cursor-pointer hover:bg-primary/90 transition-colors"
+        className="flex items-center gap-3 border-b border-white/30 dark:border-white/10 px-3 py-2.5 rounded-t-[24px] cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors"
         onClick={onClose}
       >
-        <div className="flex items-center gap-2 text-sm font-medium">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground/90">
           <Filter className="h-4 w-4" />
           <span>Build a filter</span>
           {parsedExpression && !error && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs font-semibold">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">
               {matchCount} match{matchCount === 1 ? '' : 'es'}
             </span>
           )}
@@ -297,9 +297,9 @@ export function BooleanBuilder({
         </div>
         <div className="ml-auto flex items-center gap-3">
           {parsedExpression && !error && (
-            <span className="hidden text-xs opacity-70 sm:inline-flex items-center gap-1">
+            <span className="hidden text-xs text-muted-foreground sm:inline-flex items-center gap-1">
               Press
-              <kbd className="rounded border border-primary-foreground/30 px-1 text-[10px] font-medium uppercase bg-primary-foreground/10">⏎</kbd>
+              <kbd className="rounded border border-border px-1 text-[10px] font-medium uppercase bg-muted">⏎</kbd>
               to apply
             </span>
           )}
@@ -307,7 +307,7 @@ export function BooleanBuilder({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 opacity-70 hover:opacity-100 hover:bg-primary-foreground/10"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/10 dark:hover:bg-white/5"
               onClick={(e) => {
                 e.stopPropagation();
                 setSaveDialogOpen(true);
@@ -320,7 +320,7 @@ export function BooleanBuilder({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 opacity-70 hover:opacity-100 hover:bg-primary-foreground/10"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/10 dark:hover:bg-white/5"
             onClick={(e) => {
               e.stopPropagation();
               onClose();

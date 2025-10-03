@@ -48,15 +48,16 @@ export function PromptCard({ prompt, isSelected = false, isCopied = false, onVie
 
   return (
     <Card
-      className={`group cursor-pointer md:hover:shadow-lg md:hover:-translate-y-1 transition-all duration-200 active:scale-[0.98] h-[240px] flex flex-col relative ${!isCopied && isSelected ? 'ring-2 ring-primary shadow-lg -translate-y-1' : ''}`}
+      className={`group cursor-pointer hover:-translate-y-1 hover:shadow-2xl transition-transform duration-200 active:scale-[0.98] h-[250px] flex flex-col relative border border-white/20 dark:border-white/10 ${!isCopied && isSelected ? 'ring-2 ring-primary shadow-xl -translate-y-1' : ''}`}
       onClick={handleCopy}
       title="Click to copy"
     >
       {/* Copy overlay */}
       {isCopied && (
         <div
-          className="absolute inset-0 bg-primary/25 backdrop-blur-[2px] rounded-lg z-10 flex items-center justify-center"
+          className="absolute inset-0 backdrop-blur-[20px] backdrop-saturate-[1.4] bg-white/30 dark:bg-black/30 rounded-lg shadow-2xl z-10 flex items-center justify-center"
           style={{
+            WebkitBackdropFilter: 'blur(20px) saturate(1.4)',
             animation: 'fadeIn 0.15s ease-in, fadeOut 0.25s ease-out 1s forwards'
           }}
         >
@@ -67,7 +68,7 @@ export function PromptCard({ prompt, isSelected = false, isCopied = false, onVie
         </div>
       )}
 
-      <CardHeader className="pb-2 pt-3 px-4">
+      <CardHeader className="pb-2 pt-4 px-5">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
@@ -89,7 +90,7 @@ export function PromptCard({ prompt, isSelected = false, isCopied = false, onVie
         </div>
       </CardHeader>
 
-      <CardContent className="px-4 py-2 flex-1 flex flex-col min-h-0">
+      <CardContent className="px-5 pt-2 pb-3 flex-1 flex flex-col min-h-0">
         {/* Tags */}
         {prompt.tags.length > 0 && (
           <div className="relative" style={{ maxHeight: '2.625rem' }}>
@@ -114,7 +115,7 @@ export function PromptCard({ prompt, isSelected = false, isCopied = false, onVie
         )}
       </CardContent>
 
-      <CardFooter className="flex gap-2 px-4 py-3 mt-auto">
+      <CardFooter className="flex gap-2 px-5 py-4 mt-auto">
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
