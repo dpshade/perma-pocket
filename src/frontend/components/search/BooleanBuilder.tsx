@@ -280,12 +280,15 @@ export function BooleanBuilder({
   const showTagToggle = displayedTags.length > 12;
 
   return (
-    <div className="rounded-[24px] backdrop-filter backdrop-blur-3xl backdrop-saturate-150 bg-white/25 dark:bg-black/35 border border-white/30 dark:border-white/15 shadow-xl">
+    <div
+      className="rounded-[24px] backdrop-blur-3xl backdrop-saturate-150 bg-white/25 dark:bg-black/35 border border-white/40 dark:border-white/25 shadow-2xl ring-1 ring-black/10 dark:ring-white/10"
+      style={{ WebkitBackdropFilter: 'blur(48px) saturate(1.5)' }}
+    >
       <div
-        className="flex items-center gap-3 border-b border-white/30 dark:border-white/10 px-3 py-2.5 rounded-t-[24px] cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors"
+        className="flex items-center gap-3 border-b border-white/50 dark:border-white/20 px-3 py-2.5 rounded-t-[24px] cursor-pointer hover:bg-white/20 dark:hover:bg-white/10 transition-colors"
         onClick={onClose}
       >
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground/90">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Filter className="h-4 w-4" />
           <span>Build a filter</span>
           {parsedExpression && !error && (

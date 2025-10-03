@@ -235,7 +235,7 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
               variant={booleanExpression || showBooleanBuilder ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setShowBooleanBuilder((open) => !open)}
-              className={`h-8 w-8 sm:h-7 sm:w-7 p-0 ${booleanExpression || showBooleanBuilder ? 'bg-primary/90 hover:bg-primary' : 'hover:bg-transparent'}`}
+              className={`h-8 w-8 sm:h-7 sm:w-7 rounded-full ${booleanExpression || showBooleanBuilder ? 'bg-primary hover:bg-primary shadow-lg p-2' : 'p-0 hover:bg-transparent'}`}
               title="Filter builder"
             >
               <Filter className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
