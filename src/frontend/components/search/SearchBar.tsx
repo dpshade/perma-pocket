@@ -191,7 +191,11 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
             expressionText={expressionText}
             onExpressionChange={setExpressionText}
             onApply={handleApplyExpression}
-            onClose={() => setShowBooleanBuilder(false)}
+            onClose={() => {
+              setShowBooleanBuilder(false);
+              setShowTagSuggestions(false);
+              searchInputRef.current?.focus();
+            }}
             isOpen={showBooleanBuilder}
             collections={collections}
           />
@@ -223,11 +227,11 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
             onKeyDown={handleInlineAutocompleteKeyDown}
             className="h-11 sm:h-9 w-full border-0 bg-transparent pl-11 sm:pl-10 pr-24 sm:pr-20 text-base sm:text-sm focus-visible:ring-0 py-0"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 sm:gap-1.5 bg-white/50 dark:bg-black/40 backdrop-blur-md rounded-full px-2 py-1 shadow-md border border-white/30 dark:border-white/10 transition-all hover:bg-white/60 hover:dark:bg-black/50 hover:border-white/40 hover:dark:border-white/20">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/50 dark:bg-black/40 backdrop-blur-md rounded-full px-2 py-1 shadow-md border border-white/30 dark:border-white/10 transition-all group hover:bg-white/60 hover:dark:bg-black/50 hover:border-white/40 hover:dark:border-white/20 flex items-center gap-0">
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="rounded-full p-1.5 sm:p-1 text-muted-foreground transition-all hover:text-foreground active:scale-95 hover:bg-transparent"
+                className="rounded-full p-1.5 sm:p-1 text-muted-foreground transition-all group-hover:text-foreground active:scale-95 mr-2 sm:mr-1.5"
                 title="Clear search"
               >
                 <X className="h-5 w-5 sm:h-4 sm:w-4" />
@@ -237,7 +241,7 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
               variant={booleanExpression || showBooleanBuilder ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setShowBooleanBuilder((open) => !open)}
-              className={`h-8 w-8 sm:h-7 sm:w-7 rounded-full ${booleanExpression || showBooleanBuilder ? 'bg-primary hover:bg-primary shadow-lg p-2' : 'p-0 hover:bg-transparent'}`}
+              className={`h-8 w-8 sm:h-7 sm:w-7 ${showNewPromptButton && onCreateNew ? 'rounded-l-full' : 'rounded-full'} ${booleanExpression || showBooleanBuilder ? 'bg-primary hover:bg-primary/90 shadow-lg p-2' : 'p-0'}`}
               title="Filter builder"
             >
               <Filter className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
@@ -247,7 +251,7 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
                 variant="default"
                 size="sm"
                 onClick={onCreateNew}
-                className="h-8 w-8 sm:h-7 sm:w-7 rounded-full bg-primary hover:bg-primary shadow-lg p-2 text-primary-foreground transition-all duration-300 animate-in fade-in slide-in-from-right-2"
+                className="h-8 w-8 sm:h-7 sm:w-7 rounded-r-full bg-primary hover:bg-primary/90 shadow-lg p-2 text-primary-foreground transition-all duration-300 animate-in fade-in slide-in-from-right-2"
                 title="New Prompt"
               >
                 <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
@@ -260,25 +264,19 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
           <>
             <div
               className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground cursor-pointer pt-2 border-t border-white/30 dark:border-white/10"
-              onClick={() => setShowTagSuggestions(!showTagSuggestions)}
+              onClick={() => {
+                const newValue = !showTagSuggestions;
+                setShowTagSuggestions(newValue);
+                // Close filter builder when hiding tags
+                if (!newValue) {
+                  setShowBooleanBuilder(false);
+                }
+              }}
             >
-              <div className="font-medium text-foreground/90 transition-colors hover:text-primary text-[13px] sm:text-xs px-2 py-1.5 sm:py-1 bg-white/20 dark:bg-white/5 rounded-lg">
+              <div className="font-medium text-foreground/90 transition-colors hover:text-primary text-[13px] sm:text-xs pl-2">
                 {showTagSuggestions ? 'Hide tag filters' : 'Show tag filters'} ({allTags.length} {tagLabel})
               </div>
               <div className="flex items-center gap-2.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
-                {selectedTags.length > 0 && (
-                  <button
-                    onClick={() => {
-                      const tagsExpression = selectedTags.map(t => `"${t}"`).join(' AND ');
-                      setExpressionText(tagsExpression);
-                      setShowBooleanBuilder(true);
-                    }}
-                    className="text-[13px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 bg-white/20 dark:bg-white/5 px-2 py-1 rounded-md"
-                    title="Click to edit filter"
-                  >
-                    Filtering by {selectedTags.length} {selectedTags.length === 1 ? 'tag' : 'tags'}
-                  </button>
-                )}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -327,7 +325,18 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
                         key={tag}
                         variant={isSelected ? 'default' : 'outline'}
                         className={`cursor-pointer rounded-full px-3.5 sm:px-3 py-1.5 sm:py-1 text-[13px] sm:text-xs transition-colors active:scale-95 ${isSelected ? 'hover:bg-primary hover:text-primary-foreground' : ''}`}
-                        onClick={() => toggleTag(tag)}
+                        onClick={() => {
+                          toggleTag(tag);
+                          // Open filter builder with updated tags
+                          const updatedTags = isSelected
+                            ? selectedTags.filter(t => t !== tag)
+                            : [...selectedTags, tag];
+                          if (updatedTags.length > 0) {
+                            const tagsExpression = updatedTags.map(t => `"${t}"`).join(' AND ');
+                            setExpressionText(tagsExpression);
+                            setShowBooleanBuilder(true);
+                          }
+                        }}
                       >
                         {tag}
                       </Badge>
@@ -340,13 +349,10 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
             )}
           </>
         )}
-      </div>
-
-      <div className="space-y-3">
 
         {booleanExpression && (
           <div
-            className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm cursor-pointer hover:bg-primary/20 transition-colors"
+            className="flex items-center gap-2 text-sm cursor-pointer transition-colors border-t border-white/30 dark:border-white/10 pt-3 pb-3 -mx-5 -mb-4 sm:-mx-4 sm:-mb-3 px-9 sm:px-8 rounded-b-[26px]"
             onClick={() => {
               setExpressionText(expressionToString(booleanExpression));
               setShowBooleanBuilder(true);
@@ -365,6 +371,9 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
               onClick={(e) => {
                 e.stopPropagation();
                 clearBooleanSearch();
+                setShowBooleanBuilder(false);
+                setShowTagSuggestions(false);
+                searchInputRef.current?.focus();
               }}
               className="rounded-full p-1 text-primary/70 transition-colors hover:text-primary"
               title="Remove filter"
@@ -373,7 +382,6 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
             </button>
           </div>
         )}
-
       </div>
 
 

@@ -355,9 +355,14 @@ export function BooleanBuilder({
               setCursorPosition(target.selectionStart ?? 0);
             }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && parsedExpression) {
+              if (event.key === 'Enter') {
                 event.preventDefault();
-                handleApply();
+                if (parsedExpression) {
+                  handleApply();
+                } else if (!expressionText.trim()) {
+                  // Empty input - collapse builder
+                  onClose();
+                }
               }
             }}
             className={cn('border-0 bg-muted/50 pr-10 text-sm focus-visible:ring-0 focus-visible:bg-muted', error && 'bg-red-500/10 focus-visible:bg-red-500/20')}
