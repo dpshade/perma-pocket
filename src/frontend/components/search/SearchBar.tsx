@@ -1,4 +1,4 @@
-import { Search, X, Filter, Bookmark, Archive, LayoutGrid, List } from 'lucide-react';
+import { Search, X, Filter, Bookmark, Archive, LayoutGrid, List, Plus } from 'lucide-react';
 import { Input } from '@/frontend/components/ui/input';
 import { Badge } from '@/frontend/components/ui/badge';
 import { Button } from '@/frontend/components/ui/button';
@@ -20,6 +20,8 @@ interface SearchBarProps {
   showDuplicates: boolean;
   setShowDuplicates: (show: boolean) => void;
   collections: UseCollectionsReturn;
+  showNewPromptButton?: boolean;
+  onCreateNew?: () => void;
 }
 
 export interface SearchBarHandle {
@@ -27,7 +29,7 @@ export interface SearchBarHandle {
   blurSearchInput: () => void;
 }
 
-export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArchived, setShowArchived, viewMode, onViewModeToggle, showDuplicates, setShowDuplicates, collections }, ref) => {
+export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArchived, setShowArchived, viewMode, onViewModeToggle, showDuplicates, setShowDuplicates, collections, showNewPromptButton = false, onCreateNew }, ref) => {
   const {
     prompts,
     searchQuery,
@@ -240,6 +242,17 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({ showArch
             >
               <Filter className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             </Button>
+            {showNewPromptButton && onCreateNew && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onCreateNew}
+                className="h-8 w-8 sm:h-7 sm:w-7 rounded-full bg-primary hover:bg-primary shadow-lg p-2 text-primary-foreground transition-all duration-300 animate-in fade-in slide-in-from-right-2"
+                title="New Prompt"
+              >
+                <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
 

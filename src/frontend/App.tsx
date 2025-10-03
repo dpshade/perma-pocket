@@ -159,6 +159,8 @@ function App() {
   const [deepLinkInitialized, setDeepLinkInitialized] = useState(false);
   const previousIndexRef = useRef<number>(0);
   const passwordCheckDone = useRef(false);
+  const [showFloatingNewButton, setShowFloatingNewButton] = useState(false);
+  const newPromptButtonRef = useRef<HTMLButtonElement>(null);
 
   // Track grid columns for keyboard navigation
   const [gridColumns, setGridColumns] = useState(1);
@@ -456,6 +458,26 @@ function App() {
       // Default sort by updatedAt (most recent first)
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
+
+  // Observe New Prompt button visibility to show floating version in header
+  useEffect(() => {
+    if (!newPromptButtonRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Show floating button when original is not visible
+        setShowFloatingNewButton(!entry.isIntersecting);
+      },
+      {
+        threshold: 0,
+        rootMargin: '-80px 0px 0px 0px', // Account for sticky header height
+      }
+    );
+
+    observer.observe(newPromptButtonRef.current);
+
+    return () => observer.disconnect();
+  }, [filteredPrompts.length]);
 
   // Reset selected index when filtered prompts change
   useEffect(() => {
@@ -834,6 +856,7 @@ function App() {
             <span className="sm:hidden">Pocket</span>
             <span className="hidden sm:inline">Pocket Prompt</span>
           </h1>
+
           <div className="flex items-center gap-2 sm:gap-2">
             {/* Desktop buttons - hidden on mobile */}
             <TooltipProvider>
@@ -952,6 +975,7 @@ function App() {
                 </span>
               </div>
               <Button
+                ref={newPromptButtonRef}
                 onClick={handleCreateNew}
                 className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold shadow-md hover:-translate-y-0.5 transition-all"
               >
@@ -1013,6 +1037,8 @@ function App() {
               showDuplicates={showDuplicates}
               setShowDuplicates={setShowDuplicates}
               collections={collections}
+              showNewPromptButton={showFloatingNewButton}
+              onCreateNew={handleCreateNew}
             />
           </div>
         </div>
